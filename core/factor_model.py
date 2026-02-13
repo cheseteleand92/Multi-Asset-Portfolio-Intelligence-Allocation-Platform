@@ -128,3 +128,25 @@ class FactorModel:
             "factor_share": factor_var / total if total else np.nan,
             "specific_share": specific / total if total else np.nan,
         }
+
+    @staticmethod
+    def factor_risk_contribution(
+        weights: pd.Series,
+        exposures: pd.DataFrame,
+        factor_cov: pd.DataFrame,
+    ) -> pd.Series:
+        """Compute normalized factor contribution to portfolio variance.
+
+        For factor k contribution, this uses:
+            c = (B'w) ⊙ (F (B'w))
+        and returns c / sum(c).
+        """
+        assets = weights.index.intersection(exposures.index)
+        factor_cols = factor_cov.index.intersection(exposures.columns)
+        w = weights.loc[assets].values
+        b = exposures.loc[assets, factor_cols].values
+        f = factor_cov.loc[factor_cols, factor_cols].values
+        factor_port = b.T @ w
+        contrib = factor_port * (f @ factor_port)
+        s = contrib.sum()
+        return pd.Series(contrib / s if s else contrib, index=factor_cols)
