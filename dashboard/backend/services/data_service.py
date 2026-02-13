@@ -35,7 +35,6 @@ class DashboardDataService:
         ]
 
     def _synthetic_factor_block(self) -> Dict[str, object]:
-        np.random.seed(1)
         dates = pd.bdate_range("2024-01-01", periods=320)
         asset_rets = pd.DataFrame(np.random.normal(0.0002, 0.01, (len(dates), len(self.assets))), index=dates, columns=self.assets)
         factor_rets = pd.DataFrame(np.random.normal(0.0, 0.008, (len(dates), len(self.factors))), index=dates, columns=self.factors)

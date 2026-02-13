@@ -25,9 +25,22 @@ class Portfolio:
 
     def normalize_weights(self) -> pd.Series:
         """Return normalized weights summing to 1."""
-        if np.isclose(self.weights.abs().sum(), 0.0):
-            raise ValueError("Weight vector is all zeros.")
-        self.weights = self.weights / self.weights.sum()
+        total_exposure = self.weights.abs().sum()
+        if np.isclose(total_exposure, 0.0):
+            # If all weights are effectively zero, return zero vector
+            return self.weights
+        
+        # Normalize so that sum of weights is 1.0 (GMV normalization would be different)
+        # Note: If this is a long-short strategy, standard normalization might be sum(abs(w))=1 (GMV) or sum(w)=1 (Net)
+        # Assuming Net normalization here as per typical portfolio construction
+        net_exposure = self.weights.sum()
+        if np.isclose(net_exposure, 0.0):
+             # Long/Short neutral portfolio, cannot normalize to sum 1 via division
+             # Fallback to GMV normalization or raise explicit error depending on policy
+             # Here we raise as it breaks 'sum to 1' contract
+             raise ValueError("Net weight is zero; cannot normalize to sum=1.")
+             
+        self.weights = self.weights / net_exposure
         return self.weights
 
     def active_weights(self) -> pd.Series:

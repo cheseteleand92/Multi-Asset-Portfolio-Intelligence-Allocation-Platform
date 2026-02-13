@@ -1,246 +1,120 @@
 # Multi-Asset Portfolio Intelligence & Allocation Platform
-
-Production-grade Python platform for multi-asset monitoring, factor risk modeling, optimization, tactical allocation, market intelligence, backtesting, and an institutional dashboard. Bloomberg (`xbbg` / `blpapi`) is the primary data interface.
-
-## Step 1: System Architecture & Data Flow Diagram
-
+ 
+**Status**: Production / Institutional-Grade  
+**Version**: 0.1.0  
+**License**: MIT
+ 
+A professional Python platform for multi-asset monitoring, factor risk modeling, robust optimization, tactical allocation, and institutional reporting. Designed for Quants and Portfolio Managers.
+ 
+---
+ 
+## 🚀 Key Features
+ 
+### 1. **Advanced Analytics Core**
+- **Risk Engine**: Parametric VaR (Gaussian), Expected Shortfall (CVaR), Total & Marginal Risk Contribution (TRC/MRC).
+- **Performance Metrics**: Max Drawdown, Calmar Ratio, Sortino Ratio, Information Ratio.
+- **Factor Model**: Rolling OLS exposures, Factor Covariance with Ledoit-Wolf shrinkage, Specific Risk decomposition.
+- **Attribution**: Multi-period Brinson-Fachler attribution with Carino smoothing.
+ 
+### 2. **Robust Optimization**
+- **Hierarchical Risk Parity (HRP)**: Machine learning-based allocation using clustering (Single Linkage) and recursive bisection.
+- **Risk Budgeting**: Equal Risk Contribution (ERC) and Target Risk Contribution constraints.
+- **Mean-Variance**: Classic MVO with constraints (Long-only, Max weight).
+ 
+### 3. **Institutional Dashboard**
+- **Interactive UI**: Fully responsive **Dark Mode** Plotly Dash interface.
+- **Live Updates**: Callback-driven architecture for real-time data refreshing.
+- **Modules**:
+  - **Portfolio Overview**: NAV, Treemap allocation, Rolling Returns.
+  - **Risk & Factors**: Correlation Heatmap, Factor Exposures, Beta/Duration.
+  - **Optimization**: Efficient Frontier visualization, Weight/Budget comparison.
+  - **Macro Intelligence**: Yield Curves, Credit Spreads, Regime Signals.
+ 
+### 4. **Production Engineering**
+- **Backtesting**: Walk-forward engine with **Transaction Cost** modeling (bps) and Turnover tracking.
+- **Architecture**: Modular `src` layout with Dependency Injection (FastAPI `Depends`).
+- **Quality**: Full `pytest` suite, Type hinting (`mypy`), and `pydantic` schemas.
+ 
+---
+ 
+## 🛠️ System Architecture
+ 
 ```text
-Bloomberg Terminal/API
- (BDH/BDP/BDS/ECO/Curves/FX/Fundamentals)
-            |
-            v
-+---------------------------+
-| data.bloomberg_interface  |
-+---------------------------+
-      |                |
-      |                +--> data.cache_manager (parquet cache)
-      v
-+---------------------------+
-| data.database (SQLAlchemy)|
-| positions/trades/snapshots|
-| factors/risk/signals/bench|
-+---------------------------+
-      |
-      v
-+------------------------------ CORE -----------------------------+
-| portfolio | factor_model | risk_engine | risk_budgeting        |
-| optimization | attribution | signals | regime_model            |
-+---------------------------------------------------------------+-+
-                                                                |
-                  +---------------------------------------------+------------------+
-                  |                                                                |
-                  v                                                                v
-        backtest.engine/cost/perf                                     dashboard.backend (FastAPI)
-                                                                              |   REST endpoints
-                                                                              v
-                                                                  dashboard.frontend (Dash)
-                                                                  /dashboard institutional UI
+[Data Layer]                 [Core Analytics]                  [Application Layer]
+Bloomberg (xbbg)    --->     FactorModel (OLS/PCA)      --->   REST API (FastAPI)
+SQLAlchemy (DB)     --->     RiskEngine (VaR/CVaR)      --->   Dashboard (Dash)
+Parquet Cache       --->     Optimizer (HRP/MVO)        --->   Jupyter Notebooks
+                             BacktestEngine (Costs)
 ```
-
-## Step 2: Folder Structure + Explanation
-
+ 
+---
+ 
+## 📦 Installation
+ 
+```bash
+# Clone the repository
+git clone https://github.com/your-repo/multi-asset-platform.git
+cd multi-asset-platform
+ 
+# Install with dependencies
+pip install -e .
+ 
+# (Optional) Install dev dependencies for testing
+pip install -e .[dev]
+```
+ 
+---
+ 
+## 🚦 Usage
+ 
+### 1. Run the Dashboard
+Launch the full-stack application (FastAPI backend + Dash frontend):
+ 
+```bash
+uvicorn dashboard.backend.main:app --reload
+```
+Open **[http://127.0.0.1:8000/dashboard](http://127.0.0.1:8000/dashboard)** in your browser.
+ 
+> **Windows Users**: You can double-click `run_dashboard.bat` to automatically install dependencies and start the dashboard if Python is installed in a standard location.
+ 
+### 2. Run Integration Demo
+Verify the pipeline (Data -> Factor Model -> HRP Optimization -> Backtest):
+ 
+```bash
+python tests/run_demo.py
+```
+ 
+### 3. Run Tests
+Execute the unit test suite:
+ 
+```bash
+pytest
+```
+ 
+---
+ 
+## 📂 Project Structure
+ 
 ```text
-core/
-  portfolio.py            # holdings, NAV, active weights
-  factor_model.py         # rolling regression multi-factor model
-  risk_engine.py          # vol/TE/VaR/ES/risk contribution helpers
-  risk_budgeting.py       # ERC/TRC with cvxpy + constraints
-  optimization.py         # MVO + Black-Litterman utilities
-  attribution.py          # Brinson-style attribution
-  signals.py              # momentum/carry signal utilities
-  regime_model.py         # regime classification
-
-data/
-  bloomberg_interface.py  # Bloomberg BDH/BDP/BDS/ECO wrapper
-  cache_manager.py        # parquet cache
-  database.py             # SQLAlchemy ORM schema
-
-backtest/
-  engine.py               # walk-forward engine
-  cost_model.py           # transaction/slippage models
-  performance.py          # drawdown/sharpe metrics
-
-dashboard/
-  backend/main.py
-  backend/routes/         # /portfolio /risk /factor /optimization /macro /signals
-  backend/schemas/        # Pydantic response models
-  backend/services/       # payload orchestration service
-  frontend/app.py         # full Dash UI (5 mandatory pages)
-
-examples/
-  optimization_example.py
-  backtest_example.py
+.
+├── core/                   # Quantitative Core
+│   ├── attribution.py      # Brinson & Multi-period attribution
+│   ├── factor_model.py     # Risk model estimation
+│   ├── optimization.py     # HRP, MVO, Black-Litterman
+│   ├── portfolio.py        # Portfolio state & accounting
+│   ├── risk_budgeting.py   # ERC/TRC solvers
+│   ├── risk_engine.py      # VaR, Drawdown, Ratios
+│   └── signals.py          # Momentum, Carry, Volatility signals
+├── data/                   # Data Engineering
+│   ├── bloomberg_interface.py
+│   └── database.py
+├── backtest/               # Simulation
+│   ├── engine.py           # Walk-forward loop
+│   └── cost_model.py       # Transaction costs
+├── dashboard/              # UI/UX
+│   ├── backend/            # FastAPI Routes & Services
+│   └── frontend/           # Plotly Dash App (Dark Mode)
+├── tests/                  # Test Suite
+├── pyproject.toml          # Dependencies & Build Config
+└── README.md               # Documentation
 ```
-
-## Step 3: Database Schema Models
-
-Implemented in `data/database.py` using SQLAlchemy ORM:
-- `Position`
-- `Trade`
-- `PortfolioSnapshot`
-- `FactorExposure`
-- `HistoricalRisk`
-- `SignalHistory`
-- `BenchmarkReturn`
-
-`create_session()` initializes schema and returns a session factory.
-
-## Step 4: Bloomberg API Wrapper Class
-
-Implemented in `data/bloomberg_interface.py`:
-- xbbg-first initialization and blpapi fallback bootstrap.
-- `bdh()`, `bdp()`, `bds()`, `eco()`, `yield_curve()`, `fx_spot_forward()`.
-- normalized pandas DataFrame outputs for downstream analytics.
-
-## Step 5: FactorModel Class Implementation
-
-Implemented in `core/factor_model.py`:
-- rolling OLS exposure estimation (`estimate_exposures`).
-- factor covariance with optional Ledoit-Wolf shrinkage (`estimate_factor_covariance`).
-- specific variance estimation (`estimate_specific_variance`).
-- variance decomposition:
-
-\[
-\mathrm{Var}(p)=w^\top B F B^\top w + w^\top D w
-\]
-
-where:
-- \(B\): factor exposures,
-- \(F\): factor covariance,
-- \(D\): diagonal specific-risk matrix.
-
-## Step 6: RiskBudgetingEngine Implementation
-
-Implemented in `core/risk_budgeting.py` with cvxpy.
-
-Supported:
-- ERC and TRC
-- risk caps per asset (`max_weight`)
-- factor exposure caps (`factor_risk_caps`)
-- regional cap (`regional_risk_caps`)
-- tracking-error constraint (`tracking_error_limit`)
-- volatility target (`vol_target`)
-- turnover penalty
-- transaction-cost penalty
-
-Outputs:
-- optimal weights
-- marginal risk contribution table
-- total risk contribution table
-
-Formulas:
-
-\[
-RC_i = w_i(\Sigma w)_i, \quad MRC_i = \frac{(\Sigma w)_i}{\sigma_p}
-\]
-
-## Step 7: Optimization Example
-
-`examples/optimization_example.py` includes:
-- synthetic expected return + covariance,
-- mean-variance solution,
-- ERC allocation with risk contribution diagnostics.
-
-Run:
-
-```bash
-python examples/optimization_example.py
-```
-
-## Step 8: Backtest Example
-
-`examples/backtest_example.py` includes:
-- walk-forward monthly rebalance,
-- optimizer-based allocator,
-- NAV and annualized performance summary.
-
-Run:
-
-```bash
-python examples/backtest_example.py
-```
-
-## Step 9: FULL Dashboard Backend Implementation
-
-FastAPI backend in `dashboard/backend/main.py` with modular routes:
-- `GET /portfolio`
-- `GET /risk`
-- `GET /factor`
-- `GET /optimization`
-- `GET /macro`
-- `GET /signals`
-
-Additional:
-- `GET /api/dashboard` for full bundled payload
-- `GET /health`
-- Pydantic schemas under `dashboard/backend/schemas/api.py`
-- SQLAlchemy schema available in `data/database.py`
-
-## Step 10: FULL Dashboard Frontend Implementation
-
-Dash frontend in `dashboard/frontend/app.py` includes all mandatory pages/charts:
-1. Portfolio Overview
-   - NAV
-   - Allocation treemap
-   - Rolling return
-   - Risk contribution
-2. Risk & Factor
-   - Factor exposure table
-   - Factor risk contribution
-   - Correlation heatmap
-   - Beta exposure
-   - Duration exposure
-3. Optimization
-   - Efficient frontier
-   - Weight comparison
-   - Risk budget visualization
-   - Constraint impact visualization
-4. TAA / Regime
-   - Regime probability
-   - Signal dashboard
-   - Suggested allocation shift
-5. Macro Intelligence
-   - Yield curve
-   - Credit spread
-   - FX index
-   - Volatility index
-   - Scenario shock result
-
-## Step 11: Setup Instructions
-
-### Requirements
-- Python 3.10+
-- Bloomberg Terminal entitlements
-- `xbbg` or `blpapi`
-
-### Install
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -U pip
-pip install pandas numpy scipy scikit-learn cvxpy sqlalchemy fastapi uvicorn dash plotly xbbg blpapi
-```
-
-### Initialize DB
-
-```python
-from data.database import create_session
-SessionLocal = create_session("sqlite:///portfolio.db")
-```
-
-### Run Full Stack
-
-```bash
-uvicorn dashboard.backend.main:app --host 0.0.0.0 --port 8000
-```
-
-Open:
-- `http://localhost:8000/dashboard`
-- `http://localhost:8000/portfolio`
-- `http://localhost:8000/risk`
-- `http://localhost:8000/factor`
-- `http://localhost:8000/optimization`
-- `http://localhost:8000/macro`
-- `http://localhost:8000/signals`
-- `http://localhost:8000/api/dashboard`

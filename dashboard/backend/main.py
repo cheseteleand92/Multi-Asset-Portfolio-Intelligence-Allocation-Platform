@@ -1,7 +1,7 @@
 """FastAPI backend with modular routes and embedded institutional Dash frontend."""
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.wsgi import WSGIMiddleware
 
@@ -23,7 +23,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-service = DashboardDataService()
+from dashboard.backend.dependencies import get_data_service
+
+# Initialize service singleton for app startup
+service = get_data_service()
 
 app.include_router(portfolio_router)
 app.include_router(risk_router)
@@ -40,10 +43,13 @@ def health() -> dict:
 
 
 @app.get("/api/dashboard", response_model=DashboardBundleResponse)
-def dashboard_bundle() -> DashboardBundleResponse:
+def dashboard_bundle(
+    service: DashboardDataService = Depends(get_data_service),
+) -> DashboardBundleResponse:
     """Combined payload endpoint used by dashboard frontend bootstrap."""
     return DashboardBundleResponse(**service.get_payload())
 
 
+# Mount Dash app with initial payload from the singleton service
 _dash = create_dashboard_app(service.get_payload())
 app.mount("/dashboard", WSGIMiddleware(_dash.server))
