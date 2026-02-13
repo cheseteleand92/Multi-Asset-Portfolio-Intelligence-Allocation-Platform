@@ -8,14 +8,8 @@ version = "0.1.0"
 description = "Production-grade Multi-Asset Portfolio Intelligence & Allocation Platform"
 readme = "README.md"
 requires-python = ">=3.10"
-authors = [
-    { name = "Deepmind Advanced Agentic Coding Team" }
-]
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-]
+authors = [{ name = "Deepmind Advanced Agentic Coding Team" }]
+
 dependencies = [
     "pandas>=2.0.0",
     "numpy>=1.24.0",
@@ -28,12 +22,14 @@ dependencies = [
     "dash>=2.9.0",
     "plotly>=5.14.0",
     "xbbg>=0.7.0",
-    "blpapi>=3.19.0",
     "pydantic>=2.0.0",
     "structlog>=23.1.0"
 ]
 
+# 👉 Bloomberg 设为可选依赖（关键）
 [project.optional-dependencies]
+bbg = ["blpapi>=3.19.0"]
+
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
@@ -42,6 +38,10 @@ dev = [
     "ruff>=0.0.260",
     "mypy>=1.3.0"
 ]
+
+# 👉 明确声明 packages（解决 flat layout 报错）
+[tool.setuptools]
+packages = ["core", "data", "backtest", "dashboard"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
