@@ -6,6 +6,7 @@ from sqlalchemy.pool import StaticPool
 from backend.main import app
 from backend.database import Base
 from backend.deps import get_db
+from backend.domain.market_data.models import MarketData
 
 TEST_DB_URL = "sqlite:///:memory:"
 engine = create_engine(
@@ -116,3 +117,20 @@ def test_csv_import_replace(client):
     positions = client.get(f"/api/portfolios/{pid}/positions").json()
     assert len(positions) == 1
     assert positions[0]["ticker"] == "MSFT US Equity"
+
+
+def test_seed_demo_etf_portfolio(client):
+    r = client.post("/api/portfolios/demo/etf")
+    assert r.status_code == 200
+    payload = r.json()
+    assert payload["positions"] >= 6
+    assert payload["seeded_rows"] > 0
+
+    positions = client.get(f"/api/portfolios/{payload['portfolio_id']}/positions").json()
+    tickers = {p["ticker"] for p in positions}
+    assert "SPY US Equity" in tickers
+    assert "1306 JT Equity" in tickers
+
+    with TestSession() as db:
+        fx_rows = db.query(MarketData).filter_by(ticker="USDJPY Curncy").count()
+        assert fx_rows > 0

@@ -79,7 +79,8 @@ def position_values_base(
                 f"{p.ticker}: FX series for {p.currency.upper()}->{base_currency.upper()} not found, assuming 1.0."
             )
 
-        values[p.ticker] = float(p.quantity) * latest_price * fx
+        # Aggregate by ticker to support multiple lots of the same symbol.
+        values[p.ticker] = values.get(p.ticker, 0.0) + (float(p.quantity) * latest_price * fx)
 
     return values, warnings, fx_used
 

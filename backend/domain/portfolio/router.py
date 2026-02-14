@@ -60,3 +60,14 @@ async def import_csv(
     except (KeyError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     return {"imported": count}
+
+
+@router.post("/portfolios/demo/etf")
+def seed_demo_etf(replace: bool = Query(True), db: Session = Depends(get_db)):
+    portfolio, positions_count, seeded_rows = service.seed_demo_etf_portfolio(db, replace=replace)
+    return {
+        "portfolio_id": portfolio.id,
+        "name": portfolio.name,
+        "positions": positions_count,
+        "seeded_rows": seeded_rows,
+    }

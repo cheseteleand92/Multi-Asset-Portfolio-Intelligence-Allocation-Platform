@@ -63,19 +63,22 @@ export default function PortfolioPage() {
     enabled: !!selectedPortfolioId,
   })
 
-  const assetSeriesKeys = useMemo(() => {
-    const fromAssetNav = Object.keys(analytics?.asset_nav ?? {})
-    const fromPositions = positions.map((p) => p.ticker)
-    return Array.from(new Set([...fromAssetNav, ...fromPositions]))
-  }, [analytics?.asset_nav, positions])
+  const assetSeriesKeys = useMemo(() => Object.keys(analytics?.asset_nav ?? {}), [analytics?.asset_nav])
   const seriesOptions = useMemo(() => {
     const items = [{ id: 'portfolio', label: 'Portfolio', ticker: 'portfolio' }]
-    for (const [idx, ticker] of assetSeriesKeys.entries()) {
-      items.push({ id: `asset_${idx}`, label: ticker, ticker })
+    for (const ticker of assetSeriesKeys) {
+      items.push({ id: `asset:${encodeURIComponent(ticker)}`, label: ticker, ticker })
     }
     return items
   }, [assetSeriesKeys])
   const selectedSeries = seriesOptions.find((x) => x.id === cumTargetId) ?? seriesOptions[0]
+  const selectedSeriesId = selectedSeries?.id ?? 'portfolio'
+  const quantityByTicker = useMemo(() => {
+    return positions.reduce<Record<string, number>>((acc, p) => {
+      acc[p.ticker] = (acc[p.ticker] ?? 0) + p.quantity
+      return acc
+    }, {})
+  }, [positions])
 
   if (!selectedPortfolioId) {
     return <div className="text-muted-foreground text-sm">Select a portfolio from the header to begin.</div>
@@ -83,10 +86,10 @@ export default function PortfolioPage() {
 
   const totalReturn = analytics?.total_return
   const sharpe = analytics?.sharpe
-  const treemapData = positions.map((p) => ({
-    name: p.ticker,
-    size: p.quantity * p.cost_price,
-  }))
+  const treemapData = Object.entries(analytics?.position_values_base ?? {})
+    .map(([ticker, value]) => ({ name: ticker, size: value }))
+    .filter((x) => x.size > 0)
+  const totalValue = treemapData.reduce((acc, row) => acc + row.size, 0)
 
   const cumulativeChartData = (() => {
     const source =
@@ -207,7 +210,7 @@ export default function PortfolioPage() {
       <Card className="bg-card border-border">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-sm">Cumulative Return</CardTitle>
-          <Select value={selectedSeries.id} onValueChange={setCumTargetId}>
+          <Select value={selectedSeriesId} onValueChange={setCumTargetId}>
             <SelectTrigger className="w-52 h-8 bg-muted/40 border-border text-xs">
               <SelectValue />
             </SelectTrigger>
@@ -250,11 +253,15 @@ export default function PortfolioPage() {
           </Button>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={220}>
-            <Treemap data={treemapData} dataKey="size" nameKey="name" stroke="#18181b" fill="#3f3f46">
-              <Tooltip formatter={(v: unknown) => `$${(v as number).toLocaleString()}`} />
-            </Treemap>
-          </ResponsiveContainer>
+          {totalValue <= 0 ? (
+            <p className="text-xs text-muted-foreground">No allocation value available for current holdings.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <Treemap data={treemapData} dataKey="size" nameKey="name" stroke="#18181b" fill="#3f3f46">
+                <Tooltip formatter={(v: unknown) => `${analytics?.base_currency ?? 'USD'} ${(v as number).toLocaleString()}`} />
+              </Treemap>
+            </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
 
@@ -283,7 +290,12 @@ export default function PortfolioPage() {
                   <TableCell className="text-xs text-right">${p.cost_price.toFixed(2)}</TableCell>
                   <TableCell className="text-xs text-right font-medium">
                     {analytics?.position_values_base?.[p.ticker] != null
-                      ? `${analytics.base_currency ?? 'USD'} ${analytics.position_values_base[p.ticker].toLocaleString()}`
+                      ? (() => {
+                          const tickerValue = analytics.position_values_base?.[p.ticker] ?? 0
+                          const tickerQty = quantityByTicker[p.ticker] ?? 0
+                          const positionValue = tickerQty > 0 ? (tickerValue * p.quantity) / tickerQty : tickerValue
+                          return `${analytics.base_currency ?? 'USD'} ${positionValue.toLocaleString()}`
+                        })()
                       : '—'}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">{p.currency}</TableCell>

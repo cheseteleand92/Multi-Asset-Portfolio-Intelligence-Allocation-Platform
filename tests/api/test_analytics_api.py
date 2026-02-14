@@ -157,3 +157,32 @@ def test_analytics_no_positions_returns_warning_not_404(client: TestClient):
     assert r.status_code == 200
     payload = r.json()
     assert any("No positions found" in w for w in payload.get("warnings", []))
+
+
+def test_analytics_aggregates_duplicate_ticker_lots(client: TestClient):
+    pid = client.post("/api/portfolios", json={"name": "Dup Lots"}).json()["id"]
+    for qty in [100, 250]:
+        r = client.post(
+            f"/api/portfolios/{pid}/positions",
+            json={
+                "ticker": "SPY US Equity",
+                "quantity": qty,
+                "cost_price": 100.0,
+                "currency": "USD",
+                "asset_class": "ETF",
+            },
+        )
+        assert r.status_code == 201
+
+    dates = pd.date_range("2024-01-01", periods=260, freq="B")
+    with TestSession() as db:
+        for i, dt in enumerate(dates):
+            db.add(MarketData(ticker="SPY US Equity", date=dt.date(), close=100.0 + i, source="seed"))
+        db.commit()
+
+    res = client.get(f"/api/portfolios/{pid}/analytics", params={"lookback_days": 126})
+    assert res.status_code == 200
+    payload = res.json()
+    latest = 100.0 + (len(dates) - 1)
+    expected = (100 + 250) * latest
+    assert payload["position_values_base"]["SPY US Equity"] == pytest.approx(expected, rel=1e-6)
