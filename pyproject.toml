@@ -23,13 +23,11 @@ dependencies = [
     "plotly>=5.14.0",
     "xbbg>=0.7.0",
     "pydantic>=2.0.0",
-    "structlog>=23.1.0"
+    "structlog>=23.1.0",
+    #"blpapi>=3.19.0"
 ]
 
-# 👉 Bloomberg 设为可选依赖（关键）
 [project.optional-dependencies]
-bbg = ["blpapi>=3.19.0"]
-
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
@@ -41,12 +39,12 @@ dev = [
 
 # 👉 明确声明 packages（解决 flat layout 报错）
 [tool.setuptools]
-packages = ["core", "data", "backtest", "dashboard"]
+packages = ["core", "data", "backtest", "dashboard", "backend"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = "test_*.py"
-addopts = "-ra -q --cov=core --cov=backtest --cov=dashboard"
+addopts = "-ra -q --cov=core --cov=backtest --cov=backend"
 
 [tool.ruff]
 select = ["E", "F", "I", "B"]
