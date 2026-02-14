@@ -1,5 +1,6 @@
 from __future__ import annotations
 from datetime import date
+import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import Query
 from sqlalchemy.orm import Session
@@ -17,10 +18,15 @@ router = APIRouter(tags=["analytics"])
 
 def _portfolio_data(portfolio_id: int, db: Session, base_currency: str = "USD"):
     positions = get_positions(db, portfolio_id)
-    if not positions:
-        raise HTTPException(status_code=404, detail="No positions found")
-
     base = base_currency.upper()
+    if not positions:
+        return {}, pd.DataFrame(), {
+            "base_currency": base,
+            "fx_warnings": ["No positions found."],
+            "fx_used": {},
+            "position_values_base": {},
+        }
+
     returns, fx_warnings, fx_used = positions_to_base_returns(db, positions, base_currency=base)
     values_base, value_warnings, _ = position_values_base(db, positions, base_currency=base)
 

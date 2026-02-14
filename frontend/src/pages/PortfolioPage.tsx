@@ -44,7 +44,7 @@ export default function PortfolioPage() {
   const [lookbackDays, setLookbackDays] = useState('252')
   const [returnFrequency, setReturnFrequency] = useState<'daily' | 'weekly'>('daily')
   const [baseCurrency, setBaseCurrency] = useState('USD')
-  const [cumTarget, setCumTarget] = useState<string>('portfolio')
+  const [cumTargetId, setCumTargetId] = useState<string>('portfolio')
 
   const { data: analytics } = useQuery<Analytics>({
     queryKey: ['analytics', selectedPortfolioId, lookbackDays, returnFrequency, baseCurrency],
@@ -68,11 +68,14 @@ export default function PortfolioPage() {
     const fromPositions = positions.map((p) => p.ticker)
     return Array.from(new Set([...fromAssetNav, ...fromPositions]))
   }, [analytics?.asset_nav, positions])
-  const seriesOptions = useMemo(
-    () => ['portfolio', ...assetSeriesKeys],
-    [assetSeriesKeys],
-  )
-  const selectedCumTarget = seriesOptions.includes(cumTarget) ? cumTarget : 'portfolio'
+  const seriesOptions = useMemo(() => {
+    const items = [{ id: 'portfolio', label: 'Portfolio', ticker: 'portfolio' }]
+    for (const [idx, ticker] of assetSeriesKeys.entries()) {
+      items.push({ id: `asset_${idx}`, label: ticker, ticker })
+    }
+    return items
+  }, [assetSeriesKeys])
+  const selectedSeries = seriesOptions.find((x) => x.id === cumTargetId) ?? seriesOptions[0]
 
   if (!selectedPortfolioId) {
     return <div className="text-muted-foreground text-sm">Select a portfolio from the header to begin.</div>
@@ -87,9 +90,9 @@ export default function PortfolioPage() {
 
   const cumulativeChartData = (() => {
     const source =
-      selectedCumTarget === 'portfolio'
+      selectedSeries.ticker === 'portfolio'
         ? analytics?.nav
-        : analytics?.asset_nav?.[selectedCumTarget]
+        : analytics?.asset_nav?.[selectedSeries.ticker]
     if (!source) return []
     return Object.entries(source)
       .sort(([a], [b]) => a.localeCompare(b))
@@ -204,14 +207,14 @@ export default function PortfolioPage() {
       <Card className="bg-card border-border">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-sm">Cumulative Return</CardTitle>
-          <Select value={selectedCumTarget} onValueChange={setCumTarget}>
+          <Select value={selectedSeries.id} onValueChange={setCumTargetId}>
             <SelectTrigger className="w-52 h-8 bg-muted/40 border-border text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {seriesOptions.map((opt) => (
-                <SelectItem key={opt} value={opt}>
-                  {opt === 'portfolio' ? 'Portfolio' : opt}
+                <SelectItem key={opt.id} value={opt.id}>
+                  {opt.label}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -149,3 +149,11 @@ def test_base_currency_parameter_is_reflected(client: TestClient):
     assert r.status_code == 200
     payload = r.json()
     assert payload["base_currency"] == "JPY"
+
+
+def test_analytics_no_positions_returns_warning_not_404(client: TestClient):
+    pid = client.post("/api/portfolios", json={"name": "Empty"}).json()["id"]
+    r = client.get(f"/api/portfolios/{pid}/analytics")
+    assert r.status_code == 200
+    payload = r.json()
+    assert any("No positions found" in w for w in payload.get("warnings", []))
