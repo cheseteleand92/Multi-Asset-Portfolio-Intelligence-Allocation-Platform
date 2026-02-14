@@ -50,8 +50,13 @@ def refresh_ticker(db: Session, ticker: str, bbg_client: Any | None) -> int:
         return 0
     if df.empty:
         return 0
-    col = [c for c in df.columns if "PX_LAST" in c][0]
-    rows = [{"date": idx.date(), "close": float(val)}
+    # Column name varies by xbbg version:
+    # "AAPL US Equity|PX_LAST", "px_last", or just the ticker name.
+    # Case-insensitive match; fall back to first column (we only requested PX_LAST).
+    col_matches = [c for c in df.columns if "PX_LAST" in str(c).upper()]
+    col = col_matches[0] if col_matches else df.columns[0]
+    # idx may be datetime.date or pd.Timestamp depending on xbbg version
+    rows = [{"date": pd.Timestamp(idx).date(), "close": float(val)}
             for idx, val in df[col].items() if pd.notna(val)]
     return upsert_prices(db, ticker, rows)
 
