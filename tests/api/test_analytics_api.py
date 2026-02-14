@@ -102,6 +102,7 @@ def test_analytics_endpoint_returns_config_and_data_range(client: TestClient):
     assert "warnings" in payload
     assert "position_values_base" in payload
     assert "position_valuation" in payload
+    assert "allocation" in payload
 
 
 def test_risk_includes_fx_conversion_for_non_usd_position(client: TestClient):
@@ -228,3 +229,4 @@ def test_analytics_position_valuation_has_fx_fields(client: TestClient):
     row = payload["position_valuation"][0]
     assert row["ticker"] == "7203 JT Equity"
     assert row["fx_rate_local_to_base"] > 0
+    assert isinstance(payload.get("allocation"), list)

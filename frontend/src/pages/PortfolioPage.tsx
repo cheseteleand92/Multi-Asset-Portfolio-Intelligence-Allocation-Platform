@@ -40,6 +40,11 @@ interface Analytics {
     value_local: number
     value_base: number
   }>
+  allocation?: Array<{
+    ticker: string
+    value_base: number
+    weight: number
+  }>
   config_used?: {
     lookback_days: number
     return_frequency: string
@@ -108,15 +113,15 @@ export default function PortfolioPage() {
 
   const totalReturn = analytics?.total_return
   const sharpe = analytics?.sharpe
-  const treemapData = Object.entries(analytics?.position_values_base ?? {})
-    .map(([ticker, value]) => ({ name: ticker, size: value }))
-    .filter((x) => x.size > 0)
-  const totalValue = treemapData.reduce((acc, row) => acc + row.size, 0)
-  const allocationData = treemapData.map((row) => ({
-    ...row,
-    weightPct: totalValue > 0 ? (row.size / totalValue) * 100 : 0,
-  }))
+  const allocationData = (analytics?.allocation ?? [])
+    .filter((x) => x.value_base > 0)
+    .map((x) => ({ name: x.ticker, size: x.value_base, weightPct: x.weight * 100 }))
+  const totalValue = allocationData.reduce((acc, row) => acc + row.size, 0)
   const allocationColors = ['#0ea5e9', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#64748b']
+  const allocationColorByName: Record<string, string> = {}
+  allocationData.forEach((row, idx) => {
+    allocationColorByName[row.name] = allocationColors[idx % allocationColors.length]
+  })
 
   const cumulativeChartData = (() => {
     const source =
@@ -331,7 +336,7 @@ export default function PortfolioPage() {
                 <PieChart>
                   <Pie data={allocationData} dataKey="size" nameKey="name" innerRadius={46} outerRadius={84} paddingAngle={2}>
                     {allocationData.map((entry, idx) => (
-                      <Cell key={`${entry.name}-${idx}`} fill={allocationColors[idx % allocationColors.length]} />
+                      <Cell key={`${entry.name}-${idx}`} fill={allocationColorByName[entry.name] ?? allocationColors[idx % allocationColors.length]} />
                     ))}
                   </Pie>
                   <Tooltip
@@ -354,7 +359,7 @@ export default function PortfolioPage() {
                       <span className="truncate pr-2" title={row.name}>
                         <span
                           className="inline-block w-2 h-2 rounded-full mr-2 align-middle"
-                          style={{ backgroundColor: allocationColors[idx % allocationColors.length] }}
+                          style={{ backgroundColor: allocationColorByName[row.name] ?? allocationColors[idx % allocationColors.length] }}
                         />
                         {row.name}
                       </span>

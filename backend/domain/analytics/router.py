@@ -27,6 +27,7 @@ def _portfolio_data(portfolio_id: int, db: Session, base_currency: str = "USD"):
             "fx_used": {},
             "position_values_base": {},
             "position_valuation": [],
+            "allocation": [],
         }
 
     returns, fx_warnings, fx_used = positions_to_base_returns(db, positions, base_currency=base)
@@ -44,6 +45,14 @@ def _portfolio_data(portfolio_id: int, db: Session, base_currency: str = "USD"):
         "fx_used": fx_used,
         "position_values_base": values_base,
         "position_valuation": valuation_rows,
+        "allocation": [
+            {
+                "ticker": t,
+                "value_base": float(v),
+                "weight": (float(v) / float(total_value)) if total_value > 0 else 0.0,
+            }
+            for t, v in sorted(values_base.items(), key=lambda x: x[1], reverse=True)
+        ],
     }
     return weights, returns, meta
 
@@ -94,6 +103,7 @@ def get_analytics(
     out["fx_used"] = meta["fx_used"]
     out["position_values_base"] = meta["position_values_base"]
     out["position_valuation"] = meta["position_valuation"]
+    out["allocation"] = meta["allocation"]
     return out
 
 
