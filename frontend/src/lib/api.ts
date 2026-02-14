@@ -22,8 +22,10 @@ export const portfolioApi = {
 }
 
 export const analyticsApi = {
-  getAnalytics: (id: number) => api.get(`/portfolios/${id}/analytics`).then(r => r.data),
-  getRisk: (id: number) => api.get(`/portfolios/${id}/risk`).then(r => r.data),
+  getAnalytics: (id: number, params?: object) =>
+    api.get(`/portfolios/${id}/analytics`, { params }).then(r => r.data),
+  getRisk: (id: number, params?: object) =>
+    api.get(`/portfolios/${id}/risk`, { params }).then(r => r.data),
   whatIf: (id: number, weights: Record<string, number>) =>
     api.post(`/portfolios/${id}/what-if`, { adjusted_weights: weights }).then(r => r.data),
 }

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Treemap, ResponsiveContainer, Tooltip } from 'recharts'
 import { analyticsApi, portfolioApi } from '@/lib/api'
@@ -20,15 +21,31 @@ interface Position {
 interface Analytics {
   total_return?: number
   sharpe?: number
+  config_used?: {
+    lookback_days: number
+    return_frequency: string
+  }
+  data_range?: {
+    start?: string | null
+    end?: string | null
+    observations?: number
+  }
+  warnings?: string[]
 }
 
 export default function PortfolioPage() {
   const { selectedPortfolioId } = useAppStore()
   const [whatIfOpen, setWhatIfOpen] = useState(false)
+  const [lookbackDays, setLookbackDays] = useState('252')
+  const [returnFrequency, setReturnFrequency] = useState<'daily' | 'weekly'>('daily')
 
   const { data: analytics } = useQuery<Analytics>({
-    queryKey: ['analytics', selectedPortfolioId],
-    queryFn: () => analyticsApi.getAnalytics(selectedPortfolioId!),
+    queryKey: ['analytics', selectedPortfolioId, lookbackDays, returnFrequency],
+    queryFn: () =>
+      analyticsApi.getAnalytics(selectedPortfolioId!, {
+        lookback_days: Number(lookbackDays),
+        return_frequency: returnFrequency,
+      }),
     enabled: !!selectedPortfolioId,
   })
 
@@ -51,6 +68,56 @@ export default function PortfolioPage() {
 
   return (
     <div className="space-y-6">
+      <Card className="bg-card border-border">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm">Monitoring Parameters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-3 flex-wrap">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Lookback</p>
+              <Select value={lookbackDays} onValueChange={setLookbackDays}>
+                <SelectTrigger className="w-32 h-8 bg-muted/40 border-border text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="63">63D</SelectItem>
+                  <SelectItem value="126">126D</SelectItem>
+                  <SelectItem value="252">252D</SelectItem>
+                  <SelectItem value="504">504D</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Frequency</p>
+              <Select value={returnFrequency} onValueChange={(v: 'daily' | 'weekly') => setReturnFrequency(v)}>
+                <SelectTrigger className="w-32 h-8 bg-muted/40 border-border text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {analytics?.data_range?.start && analytics?.data_range?.end && (
+            <p className="text-xs text-muted-foreground mt-3">
+              Data window: {analytics.data_range.start} to {analytics.data_range.end}
+              {' '}
+              ({analytics.data_range.observations ?? 0} obs)
+            </p>
+          )}
+          {!!analytics?.warnings?.length && (
+            <div className="mt-2 space-y-1">
+              {analytics.warnings.map((w) => (
+                <p key={w} className="text-xs text-amber-500">{w}</p>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-3 gap-4">
         <Card className="bg-card border-border">
           <CardHeader className="pb-1">

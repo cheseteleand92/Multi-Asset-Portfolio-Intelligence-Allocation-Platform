@@ -8,11 +8,32 @@ import { analyticsApi, stressApi } from '@/lib/api'
 import { useAppStore } from '@/lib/store'
 
 interface RiskData {
+  var?: number
+  es?: number
   var_95?: number
   es_95?: number
   volatility?: number
   max_drawdown?: number
   trc?: Record<string, number>
+  warnings?: string[]
+  data_range?: {
+    start?: string | null
+    end?: string | null
+    observations?: number
+  }
+  config_used?: {
+    lookback_days: number
+    return_frequency: string
+    confidence_level: number
+    annualization: number
+  }
+  risk_explainability?: {
+    total_delta_volatility: number
+    weight_effect: number
+    market_effect: number
+    interaction_effect: number
+    top_contributors: Array<{ ticker: string; trc: number }>
+  }
 }
 
 interface StressResult {
@@ -24,10 +45,18 @@ export default function RiskPage() {
   const { selectedPortfolioId } = useAppStore()
   const [scenarioId, setScenarioId] = useState<string>('')
   const [stressResult, setStressResult] = useState<StressResult | null>(null)
+  const [lookbackDays, setLookbackDays] = useState('252')
+  const [returnFrequency, setReturnFrequency] = useState<'daily' | 'weekly'>('daily')
+  const [confidenceLevel, setConfidenceLevel] = useState('0.95')
 
   const { data: risk } = useQuery<RiskData>({
-    queryKey: ['risk', selectedPortfolioId],
-    queryFn: () => analyticsApi.getRisk(selectedPortfolioId!),
+    queryKey: ['risk', selectedPortfolioId, lookbackDays, returnFrequency, confidenceLevel],
+    queryFn: () =>
+      analyticsApi.getRisk(selectedPortfolioId!, {
+        lookback_days: Number(lookbackDays),
+        return_frequency: returnFrequency,
+        confidence_level: Number(confidenceLevel),
+      }),
     enabled: !!selectedPortfolioId,
   })
   const { data: scenarios = [] } = useQuery<{ id: string; description: string }[]>({
@@ -47,14 +76,85 @@ export default function RiskPage() {
     : []
 
   const metrics = [
-    { label: 'VaR 95%', value: risk?.var_95, color: 'text-amber-400' },
-    { label: 'ES 95%', value: risk?.es_95, color: 'text-orange-400' },
+    {
+      label: `VaR ${Math.round((risk?.config_used?.confidence_level ?? 0.95) * 100)}%`,
+      value: risk?.var ?? risk?.var_95,
+      color: 'text-amber-400',
+    },
+    {
+      label: `ES ${Math.round((risk?.config_used?.confidence_level ?? 0.95) * 100)}%`,
+      value: risk?.es ?? risk?.es_95,
+      color: 'text-orange-400',
+    },
     { label: 'Volatility', value: risk?.volatility, color: 'text-blue-400' },
     { label: 'Max Drawdown', value: risk?.max_drawdown, color: 'text-red-400' },
   ]
 
   return (
     <div className="space-y-6">
+      <Card className="bg-card border-border">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm">Risk Monitoring Parameters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-3 flex-wrap">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Lookback</p>
+              <Select value={lookbackDays} onValueChange={setLookbackDays}>
+                <SelectTrigger className="w-32 h-8 bg-muted/40 border-border text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="63">63D</SelectItem>
+                  <SelectItem value="126">126D</SelectItem>
+                  <SelectItem value="252">252D</SelectItem>
+                  <SelectItem value="504">504D</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Frequency</p>
+              <Select value={returnFrequency} onValueChange={(v: 'daily' | 'weekly') => setReturnFrequency(v)}>
+                <SelectTrigger className="w-32 h-8 bg-muted/40 border-border text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Confidence</p>
+              <Select value={confidenceLevel} onValueChange={setConfidenceLevel}>
+                <SelectTrigger className="w-32 h-8 bg-muted/40 border-border text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0.9">90%</SelectItem>
+                  <SelectItem value="0.95">95%</SelectItem>
+                  <SelectItem value="0.99">99%</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {risk?.data_range?.start && risk?.data_range?.end && (
+            <p className="text-xs text-muted-foreground mt-3">
+              Data window: {risk.data_range.start} to {risk.data_range.end}
+              {' '}
+              ({risk.data_range.observations ?? 0} obs)
+            </p>
+          )}
+          {!!risk?.warnings?.length && (
+            <div className="mt-2 space-y-1">
+              {risk.warnings.map((w) => (
+                <p key={w} className="text-xs text-amber-500">{w}</p>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-4 gap-4">
         {metrics.map(({ label, value, color }) => (
           <Card key={label} className="bg-card border-border">
@@ -92,6 +192,44 @@ export default function RiskPage() {
           </ResponsiveContainer>
         </CardContent>
       </Card>
+
+      {risk?.risk_explainability && (
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <CardTitle className="text-sm">Risk Change Explainability</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-4 gap-3">
+              <div className="rounded border border-border bg-muted/40 p-3">
+                <p className="text-xs text-muted-foreground">Total Delta Vol</p>
+                <p className="text-sm font-semibold">{(risk.risk_explainability.total_delta_volatility * 100).toFixed(2)}%</p>
+              </div>
+              <div className="rounded border border-border bg-muted/40 p-3">
+                <p className="text-xs text-muted-foreground">Weight Effect</p>
+                <p className="text-sm font-semibold">{(risk.risk_explainability.weight_effect * 100).toFixed(2)}%</p>
+              </div>
+              <div className="rounded border border-border bg-muted/40 p-3">
+                <p className="text-xs text-muted-foreground">Market Effect</p>
+                <p className="text-sm font-semibold">{(risk.risk_explainability.market_effect * 100).toFixed(2)}%</p>
+              </div>
+              <div className="rounded border border-border bg-muted/40 p-3">
+                <p className="text-xs text-muted-foreground">Interaction</p>
+                <p className="text-sm font-semibold">{(risk.risk_explainability.interaction_effect * 100).toFixed(2)}%</p>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-2">Top Risk Contributors</p>
+              <div className="flex flex-wrap gap-2">
+                {risk.risk_explainability.top_contributors.map((x) => (
+                  <span key={x.ticker} className="text-xs px-2 py-1 rounded bg-muted/40 border border-border">
+                    {x.ticker}: {(x.trc * 100).toFixed(2)}%
+                  </span>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="bg-card border-border">
         <CardHeader>
