@@ -58,3 +58,61 @@ def test_csv_import(client):
                     files={"file": ("holdings.csv", io.BytesIO(csv_data.encode()), "text/csv")})
     assert r.status_code == 200
     assert r.json()["imported"] == 1
+
+
+def test_update_position(client):
+    pid = client.post("/api/portfolios", json={"name": "F"}).json()["id"]
+    created = client.post(
+        f"/api/portfolios/{pid}/positions",
+        json={
+            "ticker": "AAPL US Equity",
+            "quantity": 100,
+            "cost_price": 150.0,
+            "currency": "USD",
+            "asset_class": "Equity",
+        },
+    ).json()
+
+    update = client.put(
+        f"/api/positions/{created['id']}",
+        json={
+            "ticker": "MSFT US Equity",
+            "quantity": 120,
+            "cost_price": 300.0,
+            "currency": "USD",
+            "asset_class": "Equity",
+        },
+    )
+
+    assert update.status_code == 200
+    payload = update.json()
+    assert payload["ticker"] == "MSFT US Equity"
+    assert payload["quantity"] == 120
+
+
+def test_csv_import_replace(client):
+    import io
+
+    pid = client.post("/api/portfolios", json={"name": "F"}).json()["id"]
+    client.post(
+        f"/api/portfolios/{pid}/positions",
+        json={
+            "ticker": "AAPL US Equity",
+            "quantity": 100,
+            "cost_price": 150.0,
+            "currency": "USD",
+            "asset_class": "Equity",
+        },
+    )
+
+    csv_data = "ticker,quantity,cost_price,currency,asset_class\nMSFT US Equity,50,320.0,USD,Equity\n"
+    r = client.post(
+        f"/api/portfolios/{pid}/import-csv?replace=true",
+        files={"file": ("holdings.csv", io.BytesIO(csv_data.encode()), "text/csv")},
+    )
+    assert r.status_code == 200
+    assert r.json()["imported"] == 1
+
+    positions = client.get(f"/api/portfolios/{pid}/positions").json()
+    assert len(positions) == 1
+    assert positions[0]["ticker"] == "MSFT US Equity"

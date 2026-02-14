@@ -24,6 +24,10 @@ class PositionCreate(BaseModel):
     currency: str = "USD"
 
 
+class PositionUpdate(PositionCreate):
+    pass
+
+
 class PositionRead(PositionCreate):
     id: int
     portfolio_id: int

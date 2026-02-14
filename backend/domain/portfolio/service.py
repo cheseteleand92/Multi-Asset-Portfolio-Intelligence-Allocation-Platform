@@ -3,7 +3,7 @@ import csv
 import io
 from sqlalchemy.orm import Session
 from backend.domain.portfolio.models import Portfolio, Position
-from backend.schemas.portfolio import PortfolioCreate, PositionCreate
+from backend.schemas.portfolio import PortfolioCreate, PositionCreate, PositionUpdate
 
 
 def list_portfolios(db: Session) -> list[Portfolio]:
@@ -31,14 +31,34 @@ def add_position(db: Session, portfolio_id: int, data: PositionCreate) -> Positi
 
 
 def delete_position(db: Session, position_id: int) -> None:
-    pos = db.query(Position).get(position_id)
+    pos = db.get(Position, position_id)
     if pos:
         db.delete(pos)
         db.commit()
 
 
-def import_csv(db: Session, portfolio_id: int, content: bytes) -> int:
+def update_position(db: Session, position_id: int, data: PositionUpdate) -> Position | None:
+    pos = db.get(Position, position_id)
+    if pos is None:
+        return None
+
+    payload = data.model_dump()
+    pos.ticker = payload["ticker"]
+    pos.asset_class = payload["asset_class"]
+    pos.quantity = payload["quantity"]
+    pos.cost_price = payload["cost_price"]
+    pos.currency = payload["currency"]
+
+    db.commit()
+    db.refresh(pos)
+    return pos
+
+
+def import_csv(db: Session, portfolio_id: int, content: bytes, replace: bool = False) -> int:
     reader = csv.DictReader(io.StringIO(content.decode("utf-8-sig")))
+    if replace:
+        db.query(Position).filter_by(portfolio_id=portfolio_id).delete()
+
     count = 0
     for row in reader:
         pos = Position(
@@ -46,8 +66,8 @@ def import_csv(db: Session, portfolio_id: int, content: bytes) -> int:
             ticker=row["ticker"].strip(),
             quantity=float(row["quantity"]),
             cost_price=float(row["cost_price"]),
-            currency=row.get("currency", "USD").strip(),
-            asset_class=row.get("asset_class", "Equity").strip(),
+            currency=str(row.get("currency") or "USD").strip(),
+            asset_class=str(row.get("asset_class") or "Equity").strip(),
         )
         db.add(pos)
         count += 1
