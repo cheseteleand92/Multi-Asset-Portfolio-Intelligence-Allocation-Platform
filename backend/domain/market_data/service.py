@@ -68,7 +68,10 @@ def prices_to_returns(db: Session, tickers: list[str]) -> pd.DataFrame:
         rows = get_cached_prices(db, ticker)
         if rows:
             s = pd.Series({r.date: r.close for r in rows}, name=ticker)
+            s.index = pd.to_datetime(s.index)
             frames[ticker] = s.pct_change().dropna()
     if not frames:
         return pd.DataFrame()
-    return pd.DataFrame(frames).dropna()
+    out = pd.DataFrame(frames).dropna()
+    out.index = pd.to_datetime(out.index)
+    return out.sort_index()

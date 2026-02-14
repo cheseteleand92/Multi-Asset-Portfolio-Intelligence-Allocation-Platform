@@ -10,6 +10,16 @@ from backend.domain.backtest.models import BacktestResult as BacktestResultORM
 router = APIRouter(tags=["backtest"])
 
 
+@router.get("/backtests/strategies")
+def list_strategies():
+    return service.get_strategies()
+
+
+@router.get("/backtests/benchmarks")
+def list_benchmarks():
+    return service.get_benchmarks()
+
+
 @router.post("/backtests", status_code=201)
 def create_backtest(body: dict, db: Session = Depends(get_db)):
     portfolio_id = body.get("portfolio_id")
@@ -24,9 +34,10 @@ def create_backtest(body: dict, db: Session = Depends(get_db)):
 
 @router.get("/backtests/{run_id}")
 def get_backtest(run_id: int, db: Session = Depends(get_db)):
-    run = db.query(BacktestRun).get(run_id)
+    run = db.get(BacktestRun, run_id)
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
+    params = json.loads(run.params_json)
     results = (db.query(BacktestResultORM)
                .filter_by(run_id=run_id)
                .order_by(BacktestResultORM.date)
@@ -34,8 +45,9 @@ def get_backtest(run_id: int, db: Session = Depends(get_db)):
     return {
         "run_id": run.id,
         "strategy": run.strategy,
-        "params": json.loads(run.params_json),
+        "params": params,
         "nav": [{"date": r.date.isoformat(), "nav": r.nav} for r in results],
+        "benchmark": service.build_benchmark_nav(db, run.portfolio_id, params),
     }
 
 
