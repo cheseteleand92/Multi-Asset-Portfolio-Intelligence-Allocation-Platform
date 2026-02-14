@@ -40,7 +40,7 @@ export default function RiskPage() {
     onSuccess: (data) => setStressResult(data as StressResult),
   })
 
-  if (!selectedPortfolioId) return <div className="text-zinc-500 text-sm">Select a portfolio.</div>
+  if (!selectedPortfolioId) return <div className="text-muted-foreground text-sm">Select a portfolio.</div>
 
   const trcData = risk?.trc
     ? Object.entries(risk.trc).map(([k, v]) => ({ ticker: k, trc: Number(v) }))
@@ -57,9 +57,9 @@ export default function RiskPage() {
     <div className="space-y-6">
       <div className="grid grid-cols-4 gap-4">
         {metrics.map(({ label, value, color }) => (
-          <Card key={label} className="bg-zinc-900 border-zinc-800">
+          <Card key={label} className="bg-card border-border">
             <CardHeader className="pb-1">
-              <CardTitle className="text-xs text-zinc-400">{label}</CardTitle>
+              <CardTitle className="text-xs text-muted-foreground">{label}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className={`text-xl font-bold ${color}`}>
@@ -70,7 +70,7 @@ export default function RiskPage() {
         ))}
       </div>
 
-      <Card className="bg-zinc-900 border-zinc-800">
+      <Card className="bg-card border-border">
         <CardHeader>
           <CardTitle className="text-sm">Risk Contribution by Position</CardTitle>
         </CardHeader>
@@ -85,7 +85,7 @@ export default function RiskPage() {
               <YAxis type="category" dataKey="ticker" tick={{ fill: '#a1a1aa', fontSize: 11 }} width={110} />
               <Tooltip
                 formatter={(v: unknown) => `${((v as number) * 100).toFixed(2)}%`}
-                contentStyle={{ background: '#18181b', border: '1px solid #3f3f46' }}
+                contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
               />
               <Bar dataKey="trc" fill="#6366f1" radius={[0, 4, 4, 0]} />
             </BarChart>
@@ -93,14 +93,14 @@ export default function RiskPage() {
         </CardContent>
       </Card>
 
-      <Card className="bg-zinc-900 border-zinc-800">
+      <Card className="bg-card border-border">
         <CardHeader>
           <CardTitle className="text-sm">Stress Testing</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-3 items-end">
             <Select value={scenarioId} onValueChange={setScenarioId}>
-              <SelectTrigger className="w-64 bg-zinc-800 border-zinc-700 text-sm h-8">
+              <SelectTrigger className="w-64 bg-muted/40 border-border text-sm h-8">
                 <SelectValue placeholder="Select scenario" />
               </SelectTrigger>
               <SelectContent>
@@ -120,14 +120,14 @@ export default function RiskPage() {
           </div>
           {stressResult && (
             <div className="flex gap-4">
-              <div className="bg-zinc-800 rounded p-3">
-                <p className="text-xs text-zinc-500">Total P&amp;L</p>
+              <div className="bg-muted/40 rounded p-3">
+                <p className="text-xs text-muted-foreground">Total P&amp;L</p>
                 <p className={`text-lg font-bold ${stressResult.total_pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                   ${stressResult.total_pnl.toLocaleString()}
                 </p>
               </div>
-              <div className="bg-zinc-800 rounded p-3">
-                <p className="text-xs text-zinc-500">P&amp;L %</p>
+              <div className="bg-muted/40 rounded p-3">
+                <p className="text-xs text-muted-foreground">P&amp;L %</p>
                 <p className={`text-lg font-bold ${stressResult.pnl_pct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                   {(stressResult.pnl_pct * 100).toFixed(2)}%
                 </p>
@@ -139,3 +139,4 @@ export default function RiskPage() {
     </div>
   )
 }
+

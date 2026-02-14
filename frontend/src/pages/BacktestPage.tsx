@@ -159,7 +159,7 @@ export default function BacktestPage() {
     },
   })
 
-  if (!selectedPortfolioId) return <div className="text-zinc-500 text-sm">Select a portfolio.</div>
+  if (!selectedPortfolioId) return <div className="text-muted-foreground text-sm">Select a portfolio.</div>
 
   const navData: NavPoint[] = runDetail?.nav ?? []
   const benchmarkData: NavPoint[] = runDetail?.benchmark ?? []
@@ -178,16 +178,16 @@ export default function BacktestPage() {
 
   return (
     <div className="space-y-6">
-      <Card className="bg-zinc-900 border-zinc-800">
+      <Card className="bg-card border-border">
         <CardHeader>
           <CardTitle className="text-sm">Run Backtest</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-3 flex-wrap items-end">
             <div>
-              <p className="text-xs text-zinc-400 mb-1">Strategy</p>
+              <p className="text-xs text-muted-foreground mb-1">Strategy</p>
               <Select value={strategy} onValueChange={setStrategy}>
-                <SelectTrigger className="w-56 bg-zinc-800 border-zinc-700 text-sm h-8">
+                <SelectTrigger className="w-56 bg-muted/40 border-border text-sm h-8">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -198,9 +198,9 @@ export default function BacktestPage() {
               </Select>
             </div>
             <div>
-              <p className="text-xs text-zinc-400 mb-1">Benchmark</p>
+              <p className="text-xs text-muted-foreground mb-1">Benchmark</p>
               <Select value={benchmark} onValueChange={setBenchmark}>
-                <SelectTrigger className="w-56 bg-zinc-800 border-zinc-700 text-sm h-8">
+                <SelectTrigger className="w-56 bg-muted/40 border-border text-sm h-8">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -211,21 +211,21 @@ export default function BacktestPage() {
               </Select>
             </div>
             <div>
-              <p className="text-xs text-zinc-400 mb-1">Cost (bps)</p>
+              <p className="text-xs text-muted-foreground mb-1">Cost (bps)</p>
               <input
                 type="number"
                 value={costBps}
                 onChange={(e) => setCostBps(e.target.value)}
-                className="w-20 h-8 rounded bg-zinc-800 border border-zinc-700 text-sm px-2 text-zinc-100"
+                className="w-20 h-8 rounded bg-muted/40 border border-border text-sm px-2 text-foreground"
               />
             </div>
             <div>
-              <p className="text-xs text-zinc-400 mb-1">Lookback days</p>
+              <p className="text-xs text-muted-foreground mb-1">Lookback days</p>
               <input
                 type="number"
                 value={lookback}
                 onChange={(e) => setLookback(e.target.value)}
-                className="w-24 h-8 rounded bg-zinc-800 border border-zinc-700 text-sm px-2 text-zinc-100"
+                className="w-24 h-8 rounded bg-muted/40 border border-border text-sm px-2 text-foreground"
               />
             </div>
             <Button size="sm" className="h-8" onClick={() => createRun.mutate()} disabled={createRun.isPending}>
@@ -234,39 +234,39 @@ export default function BacktestPage() {
             <Button
               size="sm"
               variant="outline"
-              className="h-8 border-zinc-700 bg-zinc-800 text-xs"
+              className="h-8 border-border bg-muted/40 text-xs"
               onClick={() => downloadBacktestCsv(`backtest_run_${selectedRunId ?? 'latest'}.csv`, navData, benchmarkData)}
               disabled={navData.length === 0}
             >
               Export CSV
             </Button>
           </div>
-          {errorMsg && <p className="text-xs text-red-300">{errorMsg}</p>}
+          {errorMsg && <p className="text-xs text-destructive">{errorMsg}</p>}
         </CardContent>
       </Card>
 
       {detailLoading && selectedRunId && (
-        <div className="text-xs text-zinc-400">Loading run detail…</div>
+        <div className="text-xs text-muted-foreground">Loading run detail…</div>
       )}
 
       {stats && (
         <div className="grid grid-cols-3 gap-4">
-          <Card className="bg-zinc-900 border-zinc-800">
-            <CardHeader className="pb-1"><CardTitle className="text-xs text-zinc-400">Total Return</CardTitle></CardHeader>
+          <Card className="bg-card border-border">
+            <CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">Total Return</CardTitle></CardHeader>
             <CardContent>
               <p className={`text-xl font-semibold ${stats.totalReturn >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                 {(stats.totalReturn * 100).toFixed(2)}%
               </p>
             </CardContent>
           </Card>
-          <Card className="bg-zinc-900 border-zinc-800">
-            <CardHeader className="pb-1"><CardTitle className="text-xs text-zinc-400">Max Drawdown</CardTitle></CardHeader>
+          <Card className="bg-card border-border">
+            <CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">Max Drawdown</CardTitle></CardHeader>
             <CardContent>
               <p className="text-xl font-semibold text-amber-400">{(stats.maxDrawdown * 100).toFixed(2)}%</p>
             </CardContent>
           </Card>
-          <Card className="bg-zinc-900 border-zinc-800">
-            <CardHeader className="pb-1"><CardTitle className="text-xs text-zinc-400">Annualized Volatility</CardTitle></CardHeader>
+          <Card className="bg-card border-border">
+            <CardHeader className="pb-1"><CardTitle className="text-xs text-muted-foreground">Annualized Volatility</CardTitle></CardHeader>
             <CardContent>
               <p className="text-xl font-semibold text-sky-400">{(stats.annualVol * 100).toFixed(2)}%</p>
             </CardContent>
@@ -275,7 +275,7 @@ export default function BacktestPage() {
       )}
 
       {navData.length > 0 && (
-        <Card className="bg-zinc-900 border-zinc-800">
+        <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="text-sm">
               NAV — {runDetail?.strategy?.toUpperCase()} (run #{selectedRunId})
@@ -304,7 +304,7 @@ export default function BacktestPage() {
                 />
                 <ReferenceLine y={100} stroke="#52525b" strokeDasharray="4 4" />
                 <Tooltip
-                  contentStyle={{ background: '#18181b', border: '1px solid #3f3f46', fontSize: 11 }}
+                  contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', fontSize: 11 }}
                   labelFormatter={(label: string) => `Date: ${label}`}
                   formatter={(v: unknown, name: string) => [`${(v as number).toFixed(2)}`, name]}
                 />
@@ -325,7 +325,7 @@ export default function BacktestPage() {
       )}
 
       {sortedRuns.length > 0 && (
-        <Card className="bg-zinc-900 border-zinc-800">
+        <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="text-sm">Past Runs</CardTitle>
           </CardHeader>
@@ -337,13 +337,13 @@ export default function BacktestPage() {
                   onClick={() => setActiveRunId(r.run_id)}
                   className={`w-full text-left text-xs px-3 py-2 rounded transition-colors ${
                     selectedRunId === r.run_id
-                      ? 'bg-zinc-700 text-white'
-                      : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                      ? 'bg-accent text-foreground'
+                      : 'bg-muted/40 text-muted-foreground hover:bg-accent'
                   }`}
                 >
                   <span className="font-mono">#{r.run_id}</span>
-                  <span className="ml-2 uppercase text-zinc-300">{r.strategy}</span>
-                  <span className="ml-2 text-zinc-500">{r.created_at.slice(0, 10)}</span>
+                  <span className="ml-2 uppercase text-foreground/80">{r.strategy}</span>
+                  <span className="ml-2 text-muted-foreground">{r.created_at.slice(0, 10)}</span>
                 </button>
               ))}
             </div>
@@ -353,3 +353,4 @@ export default function BacktestPage() {
     </div>
   )
 }
+

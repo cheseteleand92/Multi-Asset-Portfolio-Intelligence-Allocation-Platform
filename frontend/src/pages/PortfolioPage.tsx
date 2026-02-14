@@ -132,7 +132,7 @@ export default function PortfolioPage() {
   })
 
   if (!selectedPortfolioId) {
-    return <div className="text-zinc-500 text-sm">Select a portfolio from the header to begin.</div>
+    return <div className="text-muted-foreground text-sm">Select a portfolio from the header to begin.</div>
   }
 
   const totalReturn = analytics?.total_return
@@ -144,7 +144,7 @@ export default function PortfolioPage() {
 
   return (
     <div className="space-y-6">
-      <Card className="bg-zinc-900 border-zinc-800">
+      <Card className="bg-card border-border">
         <CardHeader>
           <CardTitle className="text-sm">Manage Holdings</CardTitle>
         </CardHeader>
@@ -154,33 +154,33 @@ export default function PortfolioPage() {
               value={newPosition.ticker}
               onChange={(e) => setNewPosition((s) => ({ ...s, ticker: e.target.value }))}
               placeholder="Ticker"
-              className="h-8 rounded border border-zinc-700 bg-zinc-800 px-2 text-xs text-zinc-100"
+              className="h-8 rounded border border-border bg-muted/40 px-2 text-xs text-foreground"
             />
             <input
               value={newPosition.asset_class}
               onChange={(e) => setNewPosition((s) => ({ ...s, asset_class: e.target.value }))}
               placeholder="Asset Class"
-              className="h-8 rounded border border-zinc-700 bg-zinc-800 px-2 text-xs text-zinc-100"
+              className="h-8 rounded border border-border bg-muted/40 px-2 text-xs text-foreground"
             />
             <input
               type="number"
               value={newPosition.quantity}
               onChange={(e) => setNewPosition((s) => ({ ...s, quantity: e.target.value }))}
               placeholder="Quantity"
-              className="h-8 rounded border border-zinc-700 bg-zinc-800 px-2 text-xs text-zinc-100"
+              className="h-8 rounded border border-border bg-muted/40 px-2 text-xs text-foreground"
             />
             <input
               type="number"
               value={newPosition.cost_price}
               onChange={(e) => setNewPosition((s) => ({ ...s, cost_price: e.target.value }))}
               placeholder="Cost Price"
-              className="h-8 rounded border border-zinc-700 bg-zinc-800 px-2 text-xs text-zinc-100"
+              className="h-8 rounded border border-border bg-muted/40 px-2 text-xs text-foreground"
             />
             <input
               value={newPosition.currency}
               onChange={(e) => setNewPosition((s) => ({ ...s, currency: e.target.value }))}
               placeholder="Currency"
-              className="h-8 rounded border border-zinc-700 bg-zinc-800 px-2 text-xs text-zinc-100"
+              className="h-8 rounded border border-border bg-muted/40 px-2 text-xs text-foreground"
             />
             <Button
               size="sm"
@@ -197,9 +197,9 @@ export default function PortfolioPage() {
               type="file"
               accept=".csv,text/csv"
               onChange={(e) => setCsvFile(e.target.files?.[0] ?? null)}
-              className="text-xs text-zinc-300 file:mr-3 file:rounded file:border-0 file:bg-zinc-800 file:px-2 file:py-1 file:text-zinc-100"
+              className="text-xs text-foreground/80 file:mr-3 file:rounded file:border-0 file:bg-muted/40 file:px-2 file:py-1 file:text-foreground"
             />
-            <label className="flex items-center gap-2 text-xs text-zinc-400">
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
               <input
                 type="checkbox"
                 checked={replaceOnImport}
@@ -210,7 +210,7 @@ export default function PortfolioPage() {
             <Button
               size="sm"
               variant="outline"
-              className="h-8 text-xs border-zinc-700 bg-zinc-800"
+              className="h-8 text-xs border-border bg-muted/40"
               onClick={() => importCsv.mutate()}
               disabled={!csvFile || importCsv.isPending}
             >
@@ -224,9 +224,9 @@ export default function PortfolioPage() {
 
       {/* Metric cards */}
       <div className="grid grid-cols-3 gap-4">
-        <Card className="bg-zinc-900 border-zinc-800">
+        <Card className="bg-card border-border">
           <CardHeader className="pb-1">
-            <CardTitle className="text-xs text-zinc-400">Total Return</CardTitle>
+            <CardTitle className="text-xs text-muted-foreground">Total Return</CardTitle>
           </CardHeader>
           <CardContent>
             <p className={`text-2xl font-bold ${(totalReturn ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -234,17 +234,17 @@ export default function PortfolioPage() {
             </p>
           </CardContent>
         </Card>
-        <Card className="bg-zinc-900 border-zinc-800">
+        <Card className="bg-card border-border">
           <CardHeader className="pb-1">
-            <CardTitle className="text-xs text-zinc-400">Sharpe Ratio</CardTitle>
+            <CardTitle className="text-xs text-muted-foreground">Sharpe Ratio</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{sharpe != null ? sharpe.toFixed(2) : '—'}</p>
           </CardContent>
         </Card>
-        <Card className="bg-zinc-900 border-zinc-800">
+        <Card className="bg-card border-border">
           <CardHeader className="pb-1">
-            <CardTitle className="text-xs text-zinc-400">Positions</CardTitle>
+            <CardTitle className="text-xs text-muted-foreground">Positions</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{positions.length}</p>
@@ -253,13 +253,13 @@ export default function PortfolioPage() {
       </div>
 
       {/* Treemap */}
-      <Card className="bg-zinc-900 border-zinc-800">
+      <Card className="bg-card border-border">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-sm">Allocation</CardTitle>
           <Button
             size="sm"
             variant="outline"
-            className="border-zinc-700 bg-zinc-800 text-xs h-7"
+            className="border-border bg-muted/40 text-xs h-7"
             onClick={() => setWhatIfOpen(true)}
           >
             What-if
@@ -275,40 +275,40 @@ export default function PortfolioPage() {
       </Card>
 
       {/* Positions table */}
-      <Card className="bg-zinc-900 border-zinc-800">
+      <Card className="bg-card border-border">
         <CardHeader>
           <CardTitle className="text-sm">Positions</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
-              <TableRow className="border-zinc-800">
-                <TableHead className="text-zinc-400 text-xs">Ticker</TableHead>
-                <TableHead className="text-zinc-400 text-xs">Asset Class</TableHead>
-                <TableHead className="text-zinc-400 text-xs text-right">Quantity</TableHead>
-                <TableHead className="text-zinc-400 text-xs text-right">Cost Price</TableHead>
-                <TableHead className="text-zinc-400 text-xs text-right">Value</TableHead>
-                <TableHead className="text-zinc-400 text-xs">Currency</TableHead>
-                <TableHead className="text-zinc-400 text-xs text-right">Actions</TableHead>
+              <TableRow className="border-border">
+                <TableHead className="text-muted-foreground text-xs">Ticker</TableHead>
+                <TableHead className="text-muted-foreground text-xs">Asset Class</TableHead>
+                <TableHead className="text-muted-foreground text-xs text-right">Quantity</TableHead>
+                <TableHead className="text-muted-foreground text-xs text-right">Cost Price</TableHead>
+                <TableHead className="text-muted-foreground text-xs text-right">Value</TableHead>
+                <TableHead className="text-muted-foreground text-xs">Currency</TableHead>
+                <TableHead className="text-muted-foreground text-xs text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {positions.map((p) => (
-                <TableRow key={p.id} className="border-zinc-800 hover:bg-zinc-800/50">
+                <TableRow key={p.id} className="border-border hover:bg-accent/60">
                   {editingId === p.id ? (
                     <>
                       <TableCell className="py-2">
                         <input
                           value={editingForm.ticker}
                           onChange={(e) => setEditingForm((s) => ({ ...s, ticker: e.target.value }))}
-                          className="h-8 w-36 rounded border border-zinc-700 bg-zinc-800 px-2 text-xs text-zinc-100"
+                          className="h-8 w-36 rounded border border-border bg-muted/40 px-2 text-xs text-foreground"
                         />
                       </TableCell>
                       <TableCell className="py-2">
                         <input
                           value={editingForm.asset_class}
                           onChange={(e) => setEditingForm((s) => ({ ...s, asset_class: e.target.value }))}
-                          className="h-8 w-28 rounded border border-zinc-700 bg-zinc-800 px-2 text-xs text-zinc-100"
+                          className="h-8 w-28 rounded border border-border bg-muted/40 px-2 text-xs text-foreground"
                         />
                       </TableCell>
                       <TableCell className="py-2 text-right">
@@ -316,7 +316,7 @@ export default function PortfolioPage() {
                           type="number"
                           value={editingForm.quantity}
                           onChange={(e) => setEditingForm((s) => ({ ...s, quantity: e.target.value }))}
-                          className="h-8 w-24 rounded border border-zinc-700 bg-zinc-800 px-2 text-xs text-zinc-100"
+                          className="h-8 w-24 rounded border border-border bg-muted/40 px-2 text-xs text-foreground"
                         />
                       </TableCell>
                       <TableCell className="py-2 text-right">
@@ -324,17 +324,17 @@ export default function PortfolioPage() {
                           type="number"
                           value={editingForm.cost_price}
                           onChange={(e) => setEditingForm((s) => ({ ...s, cost_price: e.target.value }))}
-                          className="h-8 w-24 rounded border border-zinc-700 bg-zinc-800 px-2 text-xs text-zinc-100"
+                          className="h-8 w-24 rounded border border-border bg-muted/40 px-2 text-xs text-foreground"
                         />
                       </TableCell>
                       <TableCell className="py-2 text-right">
-                        <span className="text-xs text-zinc-400">Editing…</span>
+                        <span className="text-xs text-muted-foreground">Editing…</span>
                       </TableCell>
                       <TableCell className="py-2">
                         <input
                           value={editingForm.currency}
                           onChange={(e) => setEditingForm((s) => ({ ...s, currency: e.target.value }))}
-                          className="h-8 w-20 rounded border border-zinc-700 bg-zinc-800 px-2 text-xs text-zinc-100"
+                          className="h-8 w-20 rounded border border-border bg-muted/40 px-2 text-xs text-foreground"
                         />
                       </TableCell>
                       <TableCell className="text-right">
@@ -350,7 +350,7 @@ export default function PortfolioPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-7 text-xs border-zinc-700 bg-zinc-800"
+                            className="h-7 text-xs border-border bg-muted/40"
                             onClick={() => setEditingId(null)}
                           >
                             Cancel
@@ -361,19 +361,19 @@ export default function PortfolioPage() {
                   ) : (
                     <>
                       <TableCell className="text-xs font-mono">{p.ticker}</TableCell>
-                      <TableCell className="text-xs text-zinc-400">{p.asset_class}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{p.asset_class}</TableCell>
                       <TableCell className="text-xs text-right">{p.quantity.toLocaleString()}</TableCell>
                       <TableCell className="text-xs text-right">${p.cost_price.toFixed(2)}</TableCell>
                       <TableCell className="text-xs text-right font-medium">
                         ${(p.quantity * p.cost_price).toLocaleString()}
                       </TableCell>
-                      <TableCell className="text-xs text-zinc-400">{p.currency}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{p.currency}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-7 text-xs border-zinc-700 bg-zinc-800"
+                            className="h-7 text-xs border-border bg-muted/40"
                             onClick={() => {
                               setEditingId(p.id)
                               setEditingForm({
@@ -390,7 +390,7 @@ export default function PortfolioPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-7 text-xs border-zinc-700 bg-zinc-800 text-red-300"
+                            className="h-7 text-xs border-border bg-muted/40 text-red-300"
                             onClick={() => deletePosition.mutate(p.id)}
                             disabled={deletePosition.isPending}
                           >
@@ -416,3 +416,4 @@ export default function PortfolioPage() {
     </div>
   )
 }
+

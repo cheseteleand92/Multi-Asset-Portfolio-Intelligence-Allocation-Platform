@@ -1,6 +1,8 @@
+import { useEffect } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { BarChart2, AlertTriangle, Radio, TrendingUp, Settings } from 'lucide-react'
 import Header from './Header'
+import { useAppStore } from '@/lib/store'
 
 const nav = [
   { to: '/portfolio', icon: BarChart2, label: 'Portfolio' },
@@ -11,9 +13,15 @@ const nav = [
 ]
 
 export default function Layout() {
+  const { theme } = useAppStore()
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark')
+  }, [theme])
+
   return (
-    <div className="flex h-screen bg-zinc-950 text-zinc-100">
-      <aside className="w-16 flex flex-col items-center py-6 gap-6 bg-zinc-900 border-r border-zinc-800">
+    <div className="flex h-screen bg-background text-foreground">
+      <aside className="w-16 flex flex-col items-center py-6 gap-6 bg-card border-r border-border">
         {nav.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
@@ -22,8 +30,8 @@ export default function Layout() {
             className={({ isActive }) =>
               `p-2 rounded-lg transition-colors ${
                 isActive
-                  ? 'bg-zinc-700 text-white'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                  ? 'bg-accent text-foreground'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-accent/70'
               }`
             }
           >
@@ -40,3 +48,4 @@ export default function Layout() {
     </div>
   )
 }
+

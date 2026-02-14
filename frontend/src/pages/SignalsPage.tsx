@@ -12,7 +12,7 @@ interface SignalData {
 
 function SignalCell({ value }: { value: number }) {
   const isNaN_ = Number.isNaN(value)
-  const color = isNaN_ ? 'text-zinc-500' : value > 0 ? 'text-emerald-400' : 'text-red-400'
+  const color = isNaN_ ? 'text-muted-foreground' : value > 0 ? 'text-emerald-400' : 'text-red-400'
   return (
     <TableCell className={`text-xs text-right font-mono ${color}`}>
       {isNaN_ ? '—' : value.toFixed(4)}
@@ -31,7 +31,7 @@ export default function SignalsPage() {
 
   return (
     <div className="space-y-6">
-      <Card className="bg-zinc-900 border-zinc-800">
+      <Card className="bg-card border-border">
         <CardHeader>
           <CardTitle className="text-sm">Market Regime</CardTitle>
         </CardHeader>
@@ -44,33 +44,33 @@ export default function SignalsPage() {
               {regime.regime === 'risk_on' ? '● Risk-On' : '● Risk-Off'}
             </Badge>
           ) : (
-            <span className="text-zinc-500 text-sm">Loading…</span>
+            <span className="text-muted-foreground text-sm">Loading…</span>
           )}
         </CardContent>
       </Card>
 
-      <Card className="bg-zinc-900 border-zinc-800">
+      <Card className="bg-card border-border">
         <CardHeader>
           <CardTitle className="text-sm">Alpha Signals by Ticker</CardTitle>
         </CardHeader>
         <CardContent>
           {entries.length === 0 ? (
-            <p className="text-zinc-500 text-sm">
+            <p className="text-muted-foreground text-sm">
               No signals available — add positions and refresh market data first.
             </p>
           ) : (
             <Table>
               <TableHeader>
-                <TableRow className="border-zinc-800">
-                  <TableHead className="text-zinc-400 text-xs">Ticker</TableHead>
-                  <TableHead className="text-zinc-400 text-xs text-right">Momentum</TableHead>
-                  <TableHead className="text-zinc-400 text-xs text-right">Mean Reversion</TableHead>
-                  <TableHead className="text-zinc-400 text-xs text-right">Vol Breakout</TableHead>
+                <TableRow className="border-border">
+                  <TableHead className="text-muted-foreground text-xs">Ticker</TableHead>
+                  <TableHead className="text-muted-foreground text-xs text-right">Momentum</TableHead>
+                  <TableHead className="text-muted-foreground text-xs text-right">Mean Reversion</TableHead>
+                  <TableHead className="text-muted-foreground text-xs text-right">Vol Breakout</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {entries.map(([ticker, s]) => (
-                  <TableRow key={ticker} className="border-zinc-800 hover:bg-zinc-800/50">
+                  <TableRow key={ticker} className="border-border hover:bg-accent/60">
                     <TableCell className="text-xs font-mono">{ticker}</TableCell>
                     <SignalCell value={s.momentum} />
                     <SignalCell value={s.mean_reversion} />
@@ -85,3 +85,4 @@ export default function SignalsPage() {
     </div>
   )
 }
+
