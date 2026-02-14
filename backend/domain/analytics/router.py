@@ -33,6 +33,7 @@ def _portfolio_data(portfolio_id: int, db: Session, base_currency: str = "USD"):
         "base_currency": base,
         "fx_warnings": fx_warnings + value_warnings,
         "fx_used": fx_used,
+        "position_values_base": values_base,
     }
     return weights, returns, meta
 
@@ -81,6 +82,7 @@ def get_analytics(
     out["weights"] = weights
     out["base_currency"] = meta["base_currency"]
     out["fx_used"] = meta["fx_used"]
+    out["position_values_base"] = meta["position_values_base"]
     return out
 
 

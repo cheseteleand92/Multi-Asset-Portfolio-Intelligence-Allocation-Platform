@@ -25,6 +25,7 @@ interface Analytics {
   asset_nav?: Record<string, Record<string, number>>
   base_currency?: string
   fx_used?: Record<string, string>
+  position_values_base?: Record<string, number>
   config_used?: {
     lookback_days: number
     return_frequency: string
@@ -62,10 +63,11 @@ export default function PortfolioPage() {
     enabled: !!selectedPortfolioId,
   })
 
-  const assetSeriesKeys = useMemo(
-    () => Object.keys(analytics?.asset_nav ?? {}),
-    [analytics?.asset_nav],
-  )
+  const assetSeriesKeys = useMemo(() => {
+    const fromAssetNav = Object.keys(analytics?.asset_nav ?? {})
+    const fromPositions = positions.map((p) => p.ticker)
+    return Array.from(new Set([...fromAssetNav, ...fromPositions]))
+  }, [analytics?.asset_nav, positions])
   const seriesOptions = useMemo(
     () => ['portfolio', ...assetSeriesKeys],
     [assetSeriesKeys],
@@ -277,7 +279,9 @@ export default function PortfolioPage() {
                   <TableCell className="text-xs text-right">{p.quantity.toLocaleString()}</TableCell>
                   <TableCell className="text-xs text-right">${p.cost_price.toFixed(2)}</TableCell>
                   <TableCell className="text-xs text-right font-medium">
-                    ${(p.quantity * p.cost_price).toLocaleString()}
+                    {analytics?.position_values_base?.[p.ticker] != null
+                      ? `${analytics.base_currency ?? 'USD'} ${analytics.position_values_base[p.ticker].toLocaleString()}`
+                      : '—'}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">{p.currency}</TableCell>
                 </TableRow>

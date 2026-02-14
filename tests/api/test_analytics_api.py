@@ -100,6 +100,7 @@ def test_analytics_endpoint_returns_config_and_data_range(client: TestClient):
     assert payload["config_used"]["lookback_days"] == 63
     assert payload["data_range"]["observations"] <= 63
     assert "warnings" in payload
+    assert "position_values_base" in payload
 
 
 def test_risk_includes_fx_conversion_for_non_usd_position(client: TestClient):
