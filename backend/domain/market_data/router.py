@@ -16,7 +16,15 @@ def get_prices(ticker: str, db: Session = Depends(get_db)):
 
 @router.post("/market-data/refresh")
 def refresh_all(db: Session = Depends(get_db), bbg=Depends(get_bloomberg_client)):
-    tickers = [t[0] for t in db.query(Position.ticker).distinct().all()]
-    total = sum(service.refresh_ticker(db, t, bbg) for t in tickers)
+    rows = db.query(Position.ticker, Position.currency).distinct().all()
+    tickers = {t for t, _ in rows}
+    # Include FX pairs needed for base-currency portfolio monitoring (USD base).
+    for _, ccy in rows:
+        ccy_up = (ccy or "USD").upper()
+        if ccy_up != "USD":
+            tickers.add(f"{ccy_up}USD Curncy")
+
+    ticker_list = sorted(tickers)
+    total = sum(service.refresh_ticker(db, t, bbg) for t in ticker_list)
     online = bbg is not None
-    return {"refreshed_rows": total, "online": online, "tickers": len(tickers)}
+    return {"refreshed_rows": total, "online": online, "tickers": len(ticker_list)}

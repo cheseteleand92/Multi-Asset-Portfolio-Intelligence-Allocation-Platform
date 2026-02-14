@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Treemap, ResponsiveContainer, Tooltip } from 'recharts'
+import { Treemap, ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { analyticsApi, portfolioApi } from '@/lib/api'
 import { useAppStore } from '@/lib/store'
 import WhatIfDrawer from '@/components/WhatIfDrawer'
@@ -21,6 +21,10 @@ interface Position {
 interface Analytics {
   total_return?: number
   sharpe?: number
+  nav?: Record<string, number>
+  asset_nav?: Record<string, Record<string, number>>
+  base_currency?: string
+  fx_used?: Record<string, string>
   config_used?: {
     lookback_days: number
     return_frequency: string
@@ -38,6 +42,7 @@ export default function PortfolioPage() {
   const [whatIfOpen, setWhatIfOpen] = useState(false)
   const [lookbackDays, setLookbackDays] = useState('252')
   const [returnFrequency, setReturnFrequency] = useState<'daily' | 'weekly'>('daily')
+  const [cumTarget, setCumTarget] = useState<string>('portfolio')
 
   const { data: analytics } = useQuery<Analytics>({
     queryKey: ['analytics', selectedPortfolioId, lookbackDays, returnFrequency],
@@ -65,6 +70,13 @@ export default function PortfolioPage() {
     name: p.ticker,
     size: p.quantity * p.cost_price,
   }))
+  const cumulativeChartData = (() => {
+    const source = cumTarget === 'portfolio' ? analytics?.nav : analytics?.asset_nav?.[cumTarget]
+    if (!source) return []
+    return Object.entries(source)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, nav]) => ({ date, cumret: (nav - 1) * 100 }))
+  })()
 
   return (
     <div className="space-y-6">
@@ -103,9 +115,18 @@ export default function PortfolioPage() {
           </div>
           {analytics?.data_range?.start && analytics?.data_range?.end && (
             <p className="text-xs text-muted-foreground mt-3">
+              Base currency: {analytics.base_currency ?? 'USD'}.
+              {' '}
               Data window: {analytics.data_range.start} to {analytics.data_range.end}
               {' '}
               ({analytics.data_range.observations ?? 0} obs)
+            </p>
+          )}
+          {analytics?.fx_used && Object.keys(analytics.fx_used).length > 0 && (
+            <p className="text-xs text-muted-foreground mt-1">
+              FX sources:
+              {' '}
+              {Object.entries(analytics.fx_used).map(([ccy, t]) => `${ccy} via ${t}`).join(' | ')}
             </p>
           )}
           {!!analytics?.warnings?.length && (
@@ -146,6 +167,34 @@ export default function PortfolioPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="bg-card border-border">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-sm">Cumulative Return</CardTitle>
+          <Select value={cumTarget} onValueChange={setCumTarget}>
+            <SelectTrigger className="w-52 h-8 bg-muted/40 border-border text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="portfolio">Portfolio</SelectItem>
+              {positions.map((p) => (
+                <SelectItem key={p.ticker} value={p.ticker}>{p.ticker}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={cumulativeChartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" strokeOpacity={0.3} />
+              <XAxis dataKey="date" tickFormatter={(v: string) => v.slice(2, 10)} tick={{ fontSize: 11 }} />
+              <YAxis tickFormatter={(v: number) => `${v.toFixed(1)}%`} tick={{ fontSize: 11 }} />
+              <Tooltip formatter={(v: number) => `${v.toFixed(2)}%`} />
+              <Line type="monotone" dataKey="cumret" stroke="#0ea5e9" strokeWidth={2.2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
 
       <Card className="bg-card border-border">
         <CardHeader className="flex flex-row items-center justify-between">

@@ -71,3 +71,5 @@ def test_compute_nav_respects_parameters(returns, weights):
     assert result["config_used"]["lookback_days"] == 63
     assert "data_range" in result
     assert result["data_range"]["observations"] <= 63
+    assert "asset_nav" in result
+    assert set(result["asset_nav"].keys()) == {"A", "B", "C", "D"}

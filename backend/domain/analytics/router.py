@@ -6,7 +6,10 @@ from sqlalchemy.orm import Session
 from backend.deps import get_db
 from backend.domain.analytics import service
 from backend.domain.analytics.stress import SCENARIOS, run_scenario
-from backend.domain.market_data.service import prices_to_returns
+from backend.domain.market_data.service import (
+    position_values_base,
+    positions_to_base_returns,
+)
 from backend.domain.portfolio.service import get_positions
 
 router = APIRouter(tags=["analytics"])
@@ -16,11 +19,21 @@ def _portfolio_data(portfolio_id: int, db: Session):
     positions = get_positions(db, portfolio_id)
     if not positions:
         raise HTTPException(status_code=404, detail="No positions found")
-    tickers = [p.ticker for p in positions]
-    total_value = sum(p.quantity * p.cost_price for p in positions)
-    weights = {p.ticker: (p.quantity * p.cost_price) / total_value for p in positions}
-    returns = prices_to_returns(db, tickers)
-    return weights, returns
+
+    returns, fx_warnings, fx_used = positions_to_base_returns(db, positions, base_currency="USD")
+    values_base, value_warnings, _ = position_values_base(db, positions, base_currency="USD")
+
+    weights: dict[str, float] = {}
+    total_value = sum(values_base.values())
+    if total_value > 0:
+        weights = {t: v / total_value for t, v in values_base.items() if t in returns.columns}
+
+    meta = {
+        "base_currency": "USD",
+        "fx_warnings": fx_warnings + value_warnings,
+        "fx_used": fx_used,
+    }
+    return weights, returns, meta
 
 
 def _monitoring_config(
@@ -51,7 +64,7 @@ def get_analytics(
     as_of_date: date | None = Query(None),
     db: Session = Depends(get_db),
 ):
-    weights, returns = _portfolio_data(portfolio_id, db)
+    weights, returns, meta = _portfolio_data(portfolio_id, db)
     config = _monitoring_config(
         lookback_days=lookback_days,
         return_frequency=return_frequency,
@@ -60,7 +73,13 @@ def get_analytics(
         risk_free_rate=risk_free_rate,
         as_of_date=as_of_date,
     )
-    return {**service.compute_nav(returns, weights, config=config), "weights": weights}
+    out = service.compute_nav(returns, weights, config=config)
+    warnings = out.get("warnings", [])
+    out["warnings"] = [*warnings, *meta["fx_warnings"]]
+    out["weights"] = weights
+    out["base_currency"] = meta["base_currency"]
+    out["fx_used"] = meta["fx_used"]
+    return out
 
 
 @router.get("/portfolios/{portfolio_id}/risk")
@@ -74,7 +93,7 @@ def get_risk(
     as_of_date: date | None = Query(None),
     db: Session = Depends(get_db),
 ):
-    weights, returns = _portfolio_data(portfolio_id, db)
+    weights, returns, meta = _portfolio_data(portfolio_id, db)
     config = _monitoring_config(
         lookback_days=lookback_days,
         return_frequency=return_frequency,
@@ -83,13 +102,18 @@ def get_risk(
         risk_free_rate=risk_free_rate,
         as_of_date=as_of_date,
     )
-    return service.compute_risk(returns, weights, config=config)
+    out = service.compute_risk(returns, weights, config=config)
+    warnings = out.get("warnings", [])
+    out["warnings"] = [*warnings, *meta["fx_warnings"]]
+    out["base_currency"] = meta["base_currency"]
+    out["fx_used"] = meta["fx_used"]
+    return out
 
 
 @router.post("/portfolios/{portfolio_id}/what-if")
 def what_if(portfolio_id: int, body: dict, db: Session = Depends(get_db)):
     adjusted_weights: dict = body.get("adjusted_weights", {})
-    _, returns = _portfolio_data(portfolio_id, db)
+    _, returns, _ = _portfolio_data(portfolio_id, db)
     return service.compute_risk(returns, adjusted_weights)
 
 

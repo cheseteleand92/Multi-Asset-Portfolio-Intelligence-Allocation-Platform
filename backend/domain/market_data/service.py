@@ -7,6 +7,126 @@ from sqlalchemy.orm import Session
 from backend.domain.market_data.models import MarketData
 
 
+def _price_series(db: Session, ticker: str) -> pd.Series | None:
+    rows = get_cached_prices(db, ticker)
+    if not rows:
+        return None
+    series = pd.Series({r.date: r.close for r in rows}, name=ticker).sort_index()
+    series.index = pd.to_datetime(series.index)
+    return series
+
+
+def _fx_pair_candidates(currency: str, base_currency: str) -> list[tuple[str, bool]]:
+    """
+    Returns [(ticker, is_direct_local_to_base)] candidates.
+    """
+    ccy = currency.upper()
+    base = base_currency.upper()
+    if ccy == base:
+        return []
+    return [
+        (f"{ccy}{base} Curncy", True),
+        (f"{base}{ccy} Curncy", False),
+    ]
+
+
+def _fx_series_local_to_base(db: Session, currency: str, base_currency: str) -> tuple[pd.Series | None, str | None]:
+    ccy = currency.upper()
+    base = base_currency.upper()
+    if ccy == base:
+        return pd.Series(dtype=float), None
+
+    for ticker, is_direct in _fx_pair_candidates(ccy, base):
+        s = _price_series(db, ticker)
+        if s is None or s.empty:
+            continue
+        if is_direct:
+            return s.rename(f"{ccy}->{base}"), ticker
+        # Inverse pair found (e.g., USDJPY for JPY->USD).
+        with pd.option_context("mode.use_inf_as_na", True):
+            inv = (1.0 / s).dropna()
+        return inv.rename(f"{ccy}->{base}"), ticker
+    return None, None
+
+
+def position_values_base(
+    db: Session,
+    positions: list[Any],
+    base_currency: str = "USD",
+) -> tuple[dict[str, float], list[str], dict[str, str]]:
+    """
+    Convert current position market values into base currency.
+    """
+    values: dict[str, float] = {}
+    warnings: list[str] = []
+    fx_used: dict[str, str] = {}
+
+    for p in positions:
+        price_series = _price_series(db, p.ticker)
+        latest_price = float(price_series.iloc[-1]) if price_series is not None and not price_series.empty else float(p.cost_price)
+        if price_series is None or price_series.empty:
+            warnings.append(f"{p.ticker}: missing market price, fallback to cost_price.")
+
+        fx_series, fx_ticker = _fx_series_local_to_base(db, p.currency, base_currency)
+        if p.currency.upper() == base_currency.upper():
+            fx = 1.0
+        elif fx_series is not None and not fx_series.empty:
+            fx = float(fx_series.iloc[-1])
+            fx_used[p.currency.upper()] = fx_ticker or f"{p.currency.upper()}{base_currency.upper()} synthetic"
+        else:
+            fx = 1.0
+            warnings.append(
+                f"{p.ticker}: FX series for {p.currency.upper()}->{base_currency.upper()} not found, assuming 1.0."
+            )
+
+        values[p.ticker] = float(p.quantity) * latest_price * fx
+
+    return values, warnings, fx_used
+
+
+def positions_to_base_returns(
+    db: Session,
+    positions: list[Any],
+    base_currency: str = "USD",
+) -> tuple[pd.DataFrame, list[str], dict[str, str]]:
+    """
+    Build position return series in base currency (asset local return + FX return).
+    """
+    frames: dict[str, pd.Series] = {}
+    warnings: list[str] = []
+    fx_used: dict[str, str] = {}
+
+    for p in positions:
+        local_prices = _price_series(db, p.ticker)
+        if local_prices is None or local_prices.empty:
+            warnings.append(f"{p.ticker}: no market data.")
+            continue
+
+        local_returns = local_prices.pct_change().dropna()
+        if p.currency.upper() == base_currency.upper():
+            base_returns = local_returns
+        else:
+            fx_series, fx_ticker = _fx_series_local_to_base(db, p.currency, base_currency)
+            if fx_series is None or fx_series.empty:
+                warnings.append(
+                    f"{p.ticker}: FX series for {p.currency.upper()}->{base_currency.upper()} not found; using local returns."
+                )
+                base_returns = local_returns
+            else:
+                fx_used[p.currency.upper()] = fx_ticker or f"{p.currency.upper()}{base_currency.upper()} synthetic"
+                fx_returns = fx_series.pct_change().dropna()
+                aligned = pd.concat([local_returns.rename("asset"), fx_returns.rename("fx")], axis=1).dropna()
+                base_returns = (1.0 + aligned["asset"]) * (1.0 + aligned["fx"]) - 1.0
+
+        frames[p.ticker] = base_returns.rename(p.ticker)
+
+    if not frames:
+        return pd.DataFrame(), warnings, fx_used
+    out = pd.DataFrame(frames).dropna(how="any").sort_index()
+    out.index = pd.to_datetime(out.index)
+    return out, warnings, fx_used
+
+
 def get_cached_prices(db: Session, ticker: str) -> list[MarketData]:
     return db.query(MarketData).filter_by(ticker=ticker).order_by(MarketData.date).all()
 

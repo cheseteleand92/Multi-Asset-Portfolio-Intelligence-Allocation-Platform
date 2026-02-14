@@ -100,3 +100,40 @@ def test_analytics_endpoint_returns_config_and_data_range(client: TestClient):
     assert payload["config_used"]["lookback_days"] == 63
     assert payload["data_range"]["observations"] <= 63
     assert "warnings" in payload
+
+
+def test_risk_includes_fx_conversion_for_non_usd_position(client: TestClient):
+    pid = client.post("/api/portfolios", json={"name": "FX Case"}).json()["id"]
+    client.post(
+        f"/api/portfolios/{pid}/positions",
+        json={
+            "ticker": "7203 JT Equity",
+            "quantity": 100,
+            "cost_price": 2000.0,
+            "currency": "JPY",
+            "asset_class": "Equity",
+        },
+    )
+
+    dates = pd.date_range("2024-01-01", periods=140, freq="B")
+    with TestSession() as db:
+        for i, dt in enumerate(dates):
+            db.add(MarketData(ticker="7203 JT Equity", date=dt.date(), close=2000.0 + i * 5.0, source="seed"))
+        db.commit()
+
+    without_fx = client.get(f"/api/portfolios/{pid}/risk")
+    assert without_fx.status_code == 200
+    payload_no_fx = without_fx.json()
+    assert any("FX series for JPY->USD not found" in w for w in payload_no_fx.get("warnings", []))
+
+    with TestSession() as db:
+        for i, dt in enumerate(dates):
+            # Rising JPYUSD adds extra base-currency return.
+            db.add(MarketData(ticker="JPYUSD Curncy", date=dt.date(), close=0.0070 + i * 0.000001, source="seed"))
+        db.commit()
+
+    with_fx = client.get(f"/api/portfolios/{pid}/risk")
+    assert with_fx.status_code == 200
+    payload_fx = with_fx.json()
+    assert payload_fx.get("fx_used", {}).get("JPY") == "JPYUSD Curncy"
+    assert payload_fx["volatility"] != payload_no_fx["volatility"]

@@ -234,8 +234,14 @@ def compute_nav(returns: pd.DataFrame, weights: dict[str, float], config: dict |
     sharpe = float(excess_mean / annualized_vol) if annualized_vol > 0 else 0.0
 
     nav = (1 + port_returns).cumprod()
+    asset_nav_map: dict[str, dict[str, float]] = {}
+    for t in tickers:
+        series = (1 + prepared_returns[t].dropna()).cumprod()
+        asset_nav_map[t] = {d.isoformat(): float(v) for d, v in series.items()}
+
     return {
         "nav": {d.isoformat(): float(v) for d, v in nav.items()},
+        "asset_nav": asset_nav_map,
         "total_return": float(nav.iloc[-1] - 1) if len(nav) else 0.0,
         "sharpe": sharpe,
         "config_used": config_used,
