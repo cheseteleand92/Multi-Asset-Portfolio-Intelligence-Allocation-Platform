@@ -21,6 +21,8 @@ interface RiskData {
     end?: string | null
     observations?: number
   }
+  base_currency?: string
+  fx_used?: Record<string, string>
   config_used?: {
     lookback_days: number
     return_frequency: string
@@ -48,14 +50,16 @@ export default function RiskPage() {
   const [lookbackDays, setLookbackDays] = useState('252')
   const [returnFrequency, setReturnFrequency] = useState<'daily' | 'weekly'>('daily')
   const [confidenceLevel, setConfidenceLevel] = useState('0.95')
+  const [baseCurrency, setBaseCurrency] = useState('USD')
 
   const { data: risk } = useQuery<RiskData>({
-    queryKey: ['risk', selectedPortfolioId, lookbackDays, returnFrequency, confidenceLevel],
+    queryKey: ['risk', selectedPortfolioId, lookbackDays, returnFrequency, confidenceLevel, baseCurrency],
     queryFn: () =>
       analyticsApi.getRisk(selectedPortfolioId!, {
         lookback_days: Number(lookbackDays),
         return_frequency: returnFrequency,
         confidence_level: Number(confidenceLevel),
+        base_currency: baseCurrency,
       }),
     enabled: !!selectedPortfolioId,
   })
@@ -137,12 +141,36 @@ export default function RiskPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Base Currency</p>
+              <Select value={baseCurrency} onValueChange={setBaseCurrency}>
+                <SelectTrigger className="w-32 h-8 bg-muted/40 border-border text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="USD">USD</SelectItem>
+                  <SelectItem value="JPY">JPY</SelectItem>
+                  <SelectItem value="EUR">EUR</SelectItem>
+                  <SelectItem value="HKD">HKD</SelectItem>
+                  <SelectItem value="CNY">CNY</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           {risk?.data_range?.start && risk?.data_range?.end && (
             <p className="text-xs text-muted-foreground mt-3">
+              Base currency: {risk.base_currency ?? baseCurrency}.
+              {' '}
               Data window: {risk.data_range.start} to {risk.data_range.end}
               {' '}
               ({risk.data_range.observations ?? 0} obs)
+            </p>
+          )}
+          {risk?.fx_used && Object.keys(risk.fx_used).length > 0 && (
+            <p className="text-xs text-muted-foreground mt-1">
+              FX sources:
+              {' '}
+              {Object.entries(risk.fx_used).map(([ccy, t]) => `${ccy} via ${t}`).join(' | ')}
             </p>
           )}
           {!!risk?.warnings?.length && (

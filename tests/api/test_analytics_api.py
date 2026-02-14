@@ -137,3 +137,14 @@ def test_risk_includes_fx_conversion_for_non_usd_position(client: TestClient):
     payload_fx = with_fx.json()
     assert payload_fx.get("fx_used", {}).get("JPY") == "JPYUSD Curncy"
     assert payload_fx["volatility"] != payload_no_fx["volatility"]
+
+
+def test_base_currency_parameter_is_reflected(client: TestClient):
+    pid = _seed_portfolio_and_prices(client)
+    r = client.get(
+        f"/api/portfolios/{pid}/analytics",
+        params={"base_currency": "JPY", "lookback_days": 63},
+    )
+    assert r.status_code == 200
+    payload = r.json()
+    assert payload["base_currency"] == "JPY"

@@ -42,14 +42,16 @@ export default function PortfolioPage() {
   const [whatIfOpen, setWhatIfOpen] = useState(false)
   const [lookbackDays, setLookbackDays] = useState('252')
   const [returnFrequency, setReturnFrequency] = useState<'daily' | 'weekly'>('daily')
+  const [baseCurrency, setBaseCurrency] = useState('USD')
   const [cumTarget, setCumTarget] = useState<string>('portfolio')
 
   const { data: analytics } = useQuery<Analytics>({
-    queryKey: ['analytics', selectedPortfolioId, lookbackDays, returnFrequency],
+    queryKey: ['analytics', selectedPortfolioId, lookbackDays, returnFrequency, baseCurrency],
     queryFn: () =>
       analyticsApi.getAnalytics(selectedPortfolioId!, {
         lookback_days: Number(lookbackDays),
         return_frequency: returnFrequency,
+        base_currency: baseCurrency,
       }),
     enabled: !!selectedPortfolioId,
   })
@@ -109,6 +111,21 @@ export default function PortfolioPage() {
                 <SelectContent>
                   <SelectItem value="daily">Daily</SelectItem>
                   <SelectItem value="weekly">Weekly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Base Currency</p>
+              <Select value={baseCurrency} onValueChange={setBaseCurrency}>
+                <SelectTrigger className="w-32 h-8 bg-muted/40 border-border text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="USD">USD</SelectItem>
+                  <SelectItem value="JPY">JPY</SelectItem>
+                  <SelectItem value="EUR">EUR</SelectItem>
+                  <SelectItem value="HKD">HKD</SelectItem>
+                  <SelectItem value="CNY">CNY</SelectItem>
                 </SelectContent>
               </Select>
             </div>

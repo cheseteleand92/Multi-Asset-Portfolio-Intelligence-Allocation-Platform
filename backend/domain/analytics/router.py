@@ -15,13 +15,14 @@ from backend.domain.portfolio.service import get_positions
 router = APIRouter(tags=["analytics"])
 
 
-def _portfolio_data(portfolio_id: int, db: Session):
+def _portfolio_data(portfolio_id: int, db: Session, base_currency: str = "USD"):
     positions = get_positions(db, portfolio_id)
     if not positions:
         raise HTTPException(status_code=404, detail="No positions found")
 
-    returns, fx_warnings, fx_used = positions_to_base_returns(db, positions, base_currency="USD")
-    values_base, value_warnings, _ = position_values_base(db, positions, base_currency="USD")
+    base = base_currency.upper()
+    returns, fx_warnings, fx_used = positions_to_base_returns(db, positions, base_currency=base)
+    values_base, value_warnings, _ = position_values_base(db, positions, base_currency=base)
 
     weights: dict[str, float] = {}
     total_value = sum(values_base.values())
@@ -29,7 +30,7 @@ def _portfolio_data(portfolio_id: int, db: Session):
         weights = {t: v / total_value for t, v in values_base.items() if t in returns.columns}
 
     meta = {
-        "base_currency": "USD",
+        "base_currency": base,
         "fx_warnings": fx_warnings + value_warnings,
         "fx_used": fx_used,
     }
@@ -61,10 +62,11 @@ def get_analytics(
     return_frequency: str = Query("daily"),
     annualization: int | None = Query(None, ge=1, le=5000),
     risk_free_rate: float = Query(0.0),
+    base_currency: str = Query("USD", min_length=3, max_length=3),
     as_of_date: date | None = Query(None),
     db: Session = Depends(get_db),
 ):
-    weights, returns, meta = _portfolio_data(portfolio_id, db)
+    weights, returns, meta = _portfolio_data(portfolio_id, db, base_currency=base_currency)
     config = _monitoring_config(
         lookback_days=lookback_days,
         return_frequency=return_frequency,
@@ -90,10 +92,11 @@ def get_risk(
     confidence_level: float = Query(0.95, ge=0.80, le=0.995),
     annualization: int | None = Query(None, ge=1, le=5000),
     risk_free_rate: float = Query(0.0),
+    base_currency: str = Query("USD", min_length=3, max_length=3),
     as_of_date: date | None = Query(None),
     db: Session = Depends(get_db),
 ):
-    weights, returns, meta = _portfolio_data(portfolio_id, db)
+    weights, returns, meta = _portfolio_data(portfolio_id, db, base_currency=base_currency)
     config = _monitoring_config(
         lookback_days=lookback_days,
         return_frequency=return_frequency,
@@ -113,7 +116,7 @@ def get_risk(
 @router.post("/portfolios/{portfolio_id}/what-if")
 def what_if(portfolio_id: int, body: dict, db: Session = Depends(get_db)):
     adjusted_weights: dict = body.get("adjusted_weights", {})
-    _, returns, _ = _portfolio_data(portfolio_id, db)
+    _, returns, _ = _portfolio_data(portfolio_id, db, base_currency="USD")
     return service.compute_risk(returns, adjusted_weights)
 
 
