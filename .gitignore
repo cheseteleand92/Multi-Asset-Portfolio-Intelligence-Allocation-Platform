@@ -148,3 +148,6 @@ dmypy.json
 
 # database
 *.db
+# Keep frontend source lib modules tracked (overrides generic "lib/" rule above)
+!frontend/src/lib/
+!frontend/src/lib/**
