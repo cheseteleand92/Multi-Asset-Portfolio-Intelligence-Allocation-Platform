@@ -1,11 +1,12 @@
 import { useEffect } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
-import { BarChart2, AlertTriangle, Radio, TrendingUp, Settings } from 'lucide-react'
+import { BarChart2, Briefcase, AlertTriangle, Radio, TrendingUp, Settings } from 'lucide-react'
 import Header from './Header'
 import { useAppStore } from '@/lib/store'
 
 const nav = [
   { to: '/portfolio', icon: BarChart2, label: 'Portfolio' },
+  { to: '/holdings', icon: Briefcase, label: 'Holdings' },
   { to: '/risk', icon: AlertTriangle, label: 'Risk' },
   { to: '/signals', icon: Radio, label: 'Signals' },
   { to: '/backtest', icon: TrendingUp, label: 'Backtest' },

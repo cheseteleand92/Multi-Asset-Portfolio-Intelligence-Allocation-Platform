@@ -3,6 +3,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from './lib/queryClient'
 import Layout from './components/Layout'
 import PortfolioPage from './pages/PortfolioPage'
+import HoldingsPage from './pages/HoldingsPage'
 import RiskPage from './pages/RiskPage'
 import SignalsPage from './pages/SignalsPage'
 import BacktestPage from './pages/BacktestPage'
@@ -16,6 +17,7 @@ export default function App() {
           <Route element={<Layout />}>
             <Route index element={<Navigate to="/portfolio" replace />} />
             <Route path="portfolio" element={<PortfolioPage />} />
+            <Route path="holdings" element={<HoldingsPage />} />
             <Route path="risk" element={<RiskPage />} />
             <Route path="signals" element={<SignalsPage />} />
             <Route path="backtest" element={<BacktestPage />} />

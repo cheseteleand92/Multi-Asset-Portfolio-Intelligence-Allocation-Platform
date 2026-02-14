@@ -68,7 +68,7 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-xs text-muted-foreground">
-            Import holdings via CSV on the Portfolio page. Required columns:
+            Import holdings via CSV on the Holdings page. Required columns:
           </p>
           <code className="block text-xs bg-muted/40 rounded p-3 text-foreground/80 font-mono">
             {CSV_TEMPLATE.trim()}
