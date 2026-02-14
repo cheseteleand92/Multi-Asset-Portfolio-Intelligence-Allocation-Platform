@@ -180,6 +180,10 @@ export default function RiskPage() {
               ))}
             </div>
           )}
+          <p className="text-[11px] text-muted-foreground mt-2">
+            VaR / ES are per-period tail loss ({risk?.config_used?.return_frequency ?? returnFrequency}),
+            while Volatility is annualized.
+          </p>
         </CardContent>
       </Card>
 

@@ -101,6 +101,7 @@ def test_analytics_endpoint_returns_config_and_data_range(client: TestClient):
     assert payload["data_range"]["observations"] <= 63
     assert "warnings" in payload
     assert "position_values_base" in payload
+    assert "position_valuation" in payload
 
 
 def test_risk_includes_fx_conversion_for_non_usd_position(client: TestClient):
@@ -198,3 +199,32 @@ def test_analytics_total_return_matches_nav_terminal_value(client: TestClient):
     dates = sorted(nav.keys())
     terminal_nav = nav[dates[-1]]
     assert payload["total_return"] == pytest.approx(terminal_nav - 1.0, rel=1e-9)
+
+
+def test_analytics_position_valuation_has_fx_fields(client: TestClient):
+    pid = client.post("/api/portfolios", json={"name": "Valuation"}).json()["id"]
+    client.post(
+        f"/api/portfolios/{pid}/positions",
+        json={
+            "ticker": "7203 JT Equity",
+            "quantity": 100,
+            "cost_price": 2000.0,
+            "currency": "JPY",
+            "asset_class": "Equity",
+        },
+    )
+
+    dates = pd.date_range("2024-01-01", periods=80, freq="B")
+    with TestSession() as db:
+        for i, dt in enumerate(dates):
+            db.add(MarketData(ticker="7203 JT Equity", date=dt.date(), close=2000.0 + i, source="seed"))
+            db.add(MarketData(ticker="USDJPY Curncy", date=dt.date(), close=145.0 + i * 0.01, source="seed"))
+        db.commit()
+
+    r = client.get(f"/api/portfolios/{pid}/analytics")
+    assert r.status_code == 200
+    payload = r.json()
+    assert len(payload["position_valuation"]) == 1
+    row = payload["position_valuation"][0]
+    assert row["ticker"] == "7203 JT Equity"
+    assert row["fx_rate_local_to_base"] > 0

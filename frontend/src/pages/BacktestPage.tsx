@@ -28,6 +28,17 @@ interface BacktestDetail {
   benchmark?: NavPoint[]
   params?: { benchmark?: string }
 }
+interface BacktestPrecheck {
+  ok: boolean
+  reason: string
+  positions: number
+  tickers: string[]
+  tickers_with_data: string[]
+  tickers_missing_data: string[]
+  common_observations: number
+  lookback_days: number
+  enough_history_for_lookback: boolean
+}
 
 const FALLBACK_STRATEGIES: Strategy[] = [
   { id: 'hrp', label: 'Hierarchical Risk Parity' },
@@ -120,6 +131,11 @@ export default function BacktestPage() {
     queryKey: ['backtest-benchmarks'],
     queryFn: backtestApi.listBenchmarks,
   })
+  const { data: precheck } = useQuery<BacktestPrecheck>({
+    queryKey: ['backtest-precheck', selectedPortfolioId, lookback],
+    queryFn: () => backtestApi.precheck(selectedPortfolioId!, { lookback_days: Number(lookback) }),
+    enabled: !!selectedPortfolioId,
+  })
 
   const { data: runs = [] } = useQuery<RunSummary[]>({
     queryKey: ['backtests', selectedPortfolioId],
@@ -158,8 +174,18 @@ export default function BacktestPage() {
       setActiveRunId(data.run_id)
       void qc.invalidateQueries({ queryKey: ['backtests', selectedPortfolioId] })
     },
-    onError: (error: { response?: { data?: { detail?: string } } }) => {
-      setErrorMsg(error.response?.data?.detail ?? 'Backtest failed. Check data and parameters.')
+    onError: (error: { response?: { data?: unknown }; message?: string }) => {
+      const payload = error.response?.data
+      if (typeof payload === 'string') {
+        setErrorMsg(payload)
+        return
+      }
+      if (payload && typeof payload === 'object' && 'detail' in payload) {
+        const detail = (payload as { detail?: unknown }).detail
+        setErrorMsg(typeof detail === 'string' ? detail : JSON.stringify(detail))
+        return
+      }
+      setErrorMsg(error.message ?? 'Backtest failed. Check data and parameters.')
     },
   })
 
@@ -232,7 +258,12 @@ export default function BacktestPage() {
                 className="w-24 h-8 rounded bg-muted/40 border border-border text-sm px-2 text-foreground"
               />
             </div>
-            <Button size="sm" className="h-8" onClick={() => createRun.mutate()} disabled={createRun.isPending}>
+            <Button
+              size="sm"
+              className="h-8"
+              onClick={() => createRun.mutate()}
+              disabled={createRun.isPending || (precheck != null && !precheck.ok)}
+            >
               {createRun.isPending ? 'Running…' : 'Run'}
             </Button>
             <Button
@@ -245,6 +276,20 @@ export default function BacktestPage() {
               Export CSV
             </Button>
           </div>
+          {precheck && (
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p>
+                Data check: {precheck.ok ? 'ready' : 'not ready'}.
+                {' '}
+                Common observations: {precheck.common_observations}.
+                {' '}
+                Missing tickers: {precheck.tickers_missing_data.length}.
+              </p>
+              {!precheck.ok && precheck.reason && (
+                <p className="text-amber-500">{precheck.reason}</p>
+              )}
+            </div>
+          )}
           {errorMsg && <p className="text-xs text-destructive">{errorMsg}</p>}
         </CardContent>
       </Card>

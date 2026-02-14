@@ -185,3 +185,45 @@ def build_benchmark_nav(db: Session, portfolio_id: int, params: dict) -> list[di
         cost_bps=cost_bps,
     )
     return [{"date": dt.date().isoformat(), "nav": float(nav)} for dt, nav in benchmark.nav.items()]
+
+
+def backtest_precheck(db: Session, portfolio_id: int, lookback_days: int = 63) -> dict:
+    positions = get_positions(db, portfolio_id)
+    tickers = [p.ticker for p in positions]
+    if not tickers:
+        return {
+            "ok": False,
+            "reason": "No positions in portfolio.",
+            "positions": 0,
+            "tickers": [],
+            "tickers_with_data": [],
+            "tickers_missing_data": [],
+            "common_observations": 0,
+            "lookback_days": lookback_days,
+        }
+
+    returns = prices_to_returns(db, tickers)
+    with_data = sorted(list(returns.columns))
+    missing = sorted([t for t in tickers if t not in set(with_data)])
+    common_obs = int(len(returns))
+    enough_history = common_obs >= max(2, int(lookback_days))
+    ok = len(missing) == 0 and common_obs >= 2
+    reason = ""
+    if len(missing) > 0:
+        reason = f"Missing market data for {len(missing)} ticker(s)."
+    elif common_obs < 2:
+        reason = "Not enough aligned return history."
+    elif not enough_history:
+        reason = f"Aligned history shorter than lookback ({common_obs} < {int(lookback_days)})."
+
+    return {
+        "ok": ok,
+        "reason": reason,
+        "positions": len(positions),
+        "tickers": tickers,
+        "tickers_with_data": with_data,
+        "tickers_missing_data": missing,
+        "common_observations": common_obs,
+        "lookback_days": int(lookback_days),
+        "enough_history_for_lookback": enough_history,
+    }

@@ -26,6 +26,20 @@ interface Analytics {
   base_currency?: string
   fx_used?: Record<string, string>
   position_values_base?: Record<string, number>
+  position_valuation?: Array<{
+    position_id?: number | null
+    ticker: string
+    quantity: number
+    currency: string
+    base_currency: string
+    price_local: number
+    price_date?: string | null
+    fx_rate_local_to_base: number
+    fx_ticker?: string | null
+    fx_date?: string | null
+    value_local: number
+    value_base: number
+  }>
   config_used?: {
     lookback_days: number
     return_frequency: string
@@ -80,6 +94,13 @@ export default function PortfolioPage() {
       return acc
     }, {})
   }, [positions])
+  const valuationByPositionId = useMemo(() => {
+    const map: Record<number, NonNullable<Analytics['position_valuation']>[number]> = {}
+    for (const row of analytics?.position_valuation ?? []) {
+      if (row.position_id != null) map[row.position_id] = row
+    }
+    return map
+  }, [analytics?.position_valuation])
 
   if (!selectedPortfolioId) {
     return <div className="text-muted-foreground text-sm">Select a portfolio from the header to begin.</div>
@@ -113,6 +134,7 @@ export default function PortfolioPage() {
     nav_points: Object.keys(analytics?.nav ?? {}).length,
     asset_series_count: Object.keys(analytics?.asset_nav ?? {}).length,
     value_series_count: Object.keys(analytics?.position_values_base ?? {}).length,
+    position_valuation_count: analytics?.position_valuation?.length ?? 0,
     fx_used_count: Object.keys(analytics?.fx_used ?? {}).length,
     warnings_count: analytics?.warnings?.length ?? 0,
   }
@@ -373,6 +395,11 @@ export default function PortfolioPage() {
                   <TableCell className="text-xs text-right font-medium">
                     {analyticsLoading
                       ? 'Loading...'
+                      : valuationByPositionId[p.id] != null
+                      ? (() => {
+                          const valuation = valuationByPositionId[p.id]
+                          return `${valuation.base_currency ?? analytics?.base_currency ?? 'USD'} ${valuation.value_base.toLocaleString()}`
+                        })()
                       : analytics?.position_values_base?.[p.ticker] != null
                       ? (() => {
                           const tickerValue = analytics.position_values_base?.[p.ticker] ?? 0

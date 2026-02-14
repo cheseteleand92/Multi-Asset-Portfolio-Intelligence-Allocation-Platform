@@ -8,6 +8,7 @@ from backend.deps import get_db
 from backend.domain.analytics import service
 from backend.domain.analytics.stress import SCENARIOS, run_scenario
 from backend.domain.market_data.service import (
+    position_valuation_breakdown,
     position_values_base,
     positions_to_base_returns,
 )
@@ -25,10 +26,12 @@ def _portfolio_data(portfolio_id: int, db: Session, base_currency: str = "USD"):
             "fx_warnings": ["No positions found."],
             "fx_used": {},
             "position_values_base": {},
+            "position_valuation": [],
         }
 
     returns, fx_warnings, fx_used = positions_to_base_returns(db, positions, base_currency=base)
     values_base, value_warnings, _ = position_values_base(db, positions, base_currency=base)
+    valuation_rows, valuation_warnings, _ = position_valuation_breakdown(db, positions, base_currency=base)
 
     weights: dict[str, float] = {}
     total_value = sum(values_base.values())
@@ -37,9 +40,10 @@ def _portfolio_data(portfolio_id: int, db: Session, base_currency: str = "USD"):
 
     meta = {
         "base_currency": base,
-        "fx_warnings": fx_warnings + value_warnings,
+        "fx_warnings": fx_warnings + value_warnings + valuation_warnings,
         "fx_used": fx_used,
         "position_values_base": values_base,
+        "position_valuation": valuation_rows,
     }
     return weights, returns, meta
 
@@ -89,6 +93,7 @@ def get_analytics(
     out["base_currency"] = meta["base_currency"]
     out["fx_used"] = meta["fx_used"]
     out["position_values_base"] = meta["position_values_base"]
+    out["position_valuation"] = meta["position_valuation"]
     return out
 
 

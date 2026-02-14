@@ -50,6 +50,8 @@ export const backtestApi = {
   create: (data: object) => api.post('/backtests', data).then(r => r.data),
   get: (runId: number) => api.get(`/backtests/${runId}`).then(r => r.data),
   list: (portfolioId: number) => api.get(`/portfolios/${portfolioId}/backtests`).then(r => r.data),
+  precheck: (portfolioId: number, params?: object) =>
+    api.get(`/portfolios/${portfolioId}/backtests/precheck`, { params }).then(r => r.data),
   listStrategies: () => api.get('/backtests/strategies').then(r => r.data),
   listBenchmarks: () => api.get('/backtests/benchmarks').then(r => r.data),
 }

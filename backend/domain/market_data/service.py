@@ -1,6 +1,7 @@
 from __future__ import annotations
 from datetime import date, timedelta
 from typing import Any
+import numpy as np
 import pandas as pd
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.orm import Session
@@ -43,8 +44,7 @@ def _fx_series_local_to_base(db: Session, currency: str, base_currency: str) -> 
         if is_direct:
             return s.rename(f"{ccy}->{base}"), ticker
         # Inverse pair found (e.g., USDJPY for JPY->USD).
-        with pd.option_context("mode.use_inf_as_na", True):
-            inv = (1.0 / s).dropna()
+        inv = (1.0 / s).replace([np.inf, -np.inf], np.nan).dropna()
         return inv.rename(f"{ccy}->{base}"), ticker
     return None, None
 
@@ -83,6 +83,60 @@ def position_values_base(
         values[p.ticker] = values.get(p.ticker, 0.0) + (float(p.quantity) * latest_price * fx)
 
     return values, warnings, fx_used
+
+
+def position_valuation_breakdown(
+    db: Session,
+    positions: list[Any],
+    base_currency: str = "USD",
+) -> tuple[list[dict[str, Any]], list[str], dict[str, str]]:
+    """
+    Return per-position valuation details in both local and base currency.
+    """
+    rows: list[dict[str, Any]] = []
+    warnings: list[str] = []
+    fx_used: dict[str, str] = {}
+
+    for p in positions:
+        price_series = _price_series(db, p.ticker)
+        latest_price = float(price_series.iloc[-1]) if price_series is not None and not price_series.empty else float(p.cost_price)
+        price_date = str(price_series.index[-1].date()) if price_series is not None and not price_series.empty else None
+        if price_series is None or price_series.empty:
+            warnings.append(f"{p.ticker}: missing market price, fallback to cost_price.")
+
+        fx_series, fx_ticker = _fx_series_local_to_base(db, p.currency, base_currency)
+        fx_date: str | None = None
+        if p.currency.upper() == base_currency.upper():
+            fx_rate = 1.0
+        elif fx_series is not None and not fx_series.empty:
+            fx_rate = float(fx_series.iloc[-1])
+            fx_date = str(fx_series.index[-1].date())
+            fx_used[p.currency.upper()] = fx_ticker or f"{p.currency.upper()}{base_currency.upper()} synthetic"
+        else:
+            fx_rate = 1.0
+            warnings.append(
+                f"{p.ticker}: FX series for {p.currency.upper()}->{base_currency.upper()} not found, assuming 1.0."
+            )
+
+        qty = float(p.quantity)
+        local_value = qty * latest_price
+        base_value = local_value * fx_rate
+        rows.append({
+            "position_id": getattr(p, "id", None),
+            "ticker": p.ticker,
+            "quantity": qty,
+            "currency": p.currency.upper(),
+            "base_currency": base_currency.upper(),
+            "price_local": latest_price,
+            "price_date": price_date,
+            "fx_rate_local_to_base": fx_rate,
+            "fx_ticker": fx_ticker,
+            "fx_date": fx_date,
+            "value_local": local_value,
+            "value_base": base_value,
+        })
+
+    return rows, warnings, fx_used
 
 
 def positions_to_base_returns(

@@ -29,6 +29,8 @@ def create_backtest(body: dict, db: Session = Depends(get_db)):
         run = service.run_backtest(db, portfolio_id, body)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     return {"run_id": run.id, "strategy": run.strategy}
 
 
@@ -58,3 +60,8 @@ def list_backtests(portfolio_id: int, db: Session = Depends(get_db)):
         {"run_id": r.id, "strategy": r.strategy, "created_at": r.created_at.isoformat()}
         for r in runs
     ]
+
+
+@router.get("/portfolios/{portfolio_id}/backtests/precheck")
+def precheck_backtest(portfolio_id: int, lookback_days: int = 63, db: Session = Depends(get_db)):
+    return service.backtest_precheck(db, portfolio_id, lookback_days=lookback_days)

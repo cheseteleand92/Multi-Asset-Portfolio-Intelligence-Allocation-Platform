@@ -125,3 +125,33 @@ def test_run_backtest_without_benchmark(client: TestClient):
     detail = client.get(f"/api/backtests/{run_id}")
     assert detail.status_code == 200
     assert detail.json()["benchmark"] == []
+
+
+def test_backtest_precheck_reports_missing_data(client: TestClient):
+    portfolio_id = client.post("/api/portfolios", json={"name": "BT Precheck"}).json()["id"]
+    client.post(
+        f"/api/portfolios/{portfolio_id}/positions",
+        json={
+            "ticker": "AAPL US Equity",
+            "quantity": 100,
+            "cost_price": 100.0,
+            "currency": "USD",
+            "asset_class": "Equity",
+        },
+    )
+    client.post(
+        f"/api/portfolios/{portfolio_id}/positions",
+        json={
+            "ticker": "MISSING US Equity",
+            "quantity": 100,
+            "cost_price": 100.0,
+            "currency": "USD",
+            "asset_class": "Equity",
+        },
+    )
+    _seed_prices()
+    res = client.get(f"/api/portfolios/{portfolio_id}/backtests/precheck")
+    assert res.status_code == 200
+    payload = res.json()
+    assert payload["ok"] is False
+    assert "MISSING US Equity" in payload["tickers_missing_data"]
