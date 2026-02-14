@@ -45,6 +45,7 @@ export default function PortfolioPage() {
   const [returnFrequency, setReturnFrequency] = useState<'daily' | 'weekly'>('daily')
   const [baseCurrency, setBaseCurrency] = useState('USD')
   const [cumTargetId, setCumTargetId] = useState<string>('portfolio')
+  const [showInspector, setShowInspector] = useState(false)
 
   const { data: analytics, isLoading: analyticsLoading, isError: analyticsError } = useQuery<Analytics>({
     queryKey: ['analytics', selectedPortfolioId, lookbackDays, returnFrequency, baseCurrency],
@@ -106,12 +107,31 @@ export default function PortfolioPage() {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, nav]) => ({ date, cumret: (nav - 1) * 100 }))
   })()
+  const inspectorSummary = {
+    base_currency: analytics?.base_currency ?? null,
+    positions_count: positions.length,
+    nav_points: Object.keys(analytics?.nav ?? {}).length,
+    asset_series_count: Object.keys(analytics?.asset_nav ?? {}).length,
+    value_series_count: Object.keys(analytics?.position_values_base ?? {}).length,
+    fx_used_count: Object.keys(analytics?.fx_used ?? {}).length,
+    warnings_count: analytics?.warnings?.length ?? 0,
+  }
 
   return (
     <div className="space-y-6">
       <Card className="bg-card border-border">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm">Monitoring Parameters</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm">Monitoring Parameters</CardTitle>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs border-border bg-muted/40"
+              onClick={() => setShowInspector((s) => !s)}
+            >
+              {showInspector ? 'Hide Inspector' : 'Show Inspector'}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex gap-3 flex-wrap">
@@ -182,6 +202,24 @@ export default function PortfolioPage() {
           )}
           {analyticsError && (
             <p className="text-xs text-destructive mt-2">Failed to load monitoring analytics data.</p>
+          )}
+          {showInspector && (
+            <div className="mt-4 space-y-2">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {Object.entries(inspectorSummary).map(([k, v]) => (
+                  <div key={k} className="rounded border border-border bg-muted/30 px-2 py-1">
+                    <p className="text-[10px] text-muted-foreground">{k}</p>
+                    <p className="text-xs font-mono">{String(v)}</p>
+                  </div>
+                ))}
+              </div>
+              <details className="rounded border border-border bg-muted/20 px-2 py-2">
+                <summary className="text-xs cursor-pointer text-muted-foreground">Raw Monitoring Payload</summary>
+                <pre className="text-[10px] leading-4 overflow-auto max-h-64 mt-2">
+                  {JSON.stringify(analytics ?? {}, null, 2)}
+                </pre>
+              </details>
+            </div>
           )}
         </CardContent>
       </Card>
