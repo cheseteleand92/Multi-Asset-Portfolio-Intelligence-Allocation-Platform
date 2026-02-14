@@ -35,7 +35,13 @@ class BacktestEngine:
             cost_bps: Linear transaction cost in basis points (e.g. 10.0 for 10bps).
         """
         dates = asset_returns.index
-        rebalance_dates = dates.to_series().resample(self.rebalance_freq).last().dropna()
+        try:
+            rebalance_dates = dates.to_series().resample(self.rebalance_freq).last().dropna()
+        except ValueError:
+            # Compatibility fallback between pandas versions:
+            # some accept "ME" while older versions expect "M".
+            alt_freq = "M" if self.rebalance_freq == "ME" else "ME"
+            rebalance_dates = dates.to_series().resample(alt_freq).last().dropna()
         # Ensure rebalance dates align with available data
         rebalance_dates = rebalance_dates.map(lambda d: dates[dates <= d].max()).unique()
         rebalance_dates = pd.DatetimeIndex(rebalance_dates).dropna()

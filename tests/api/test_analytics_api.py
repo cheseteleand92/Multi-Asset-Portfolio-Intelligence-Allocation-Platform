@@ -186,3 +186,15 @@ def test_analytics_aggregates_duplicate_ticker_lots(client: TestClient):
     latest = 100.0 + (len(dates) - 1)
     expected = (100 + 250) * latest
     assert payload["position_values_base"]["SPY US Equity"] == pytest.approx(expected, rel=1e-6)
+
+
+def test_analytics_total_return_matches_nav_terminal_value(client: TestClient):
+    pid = _seed_portfolio_and_prices(client)
+    r = client.get(f"/api/portfolios/{pid}/analytics", params={"lookback_days": 126})
+    assert r.status_code == 200
+    payload = r.json()
+    nav = payload.get("nav", {})
+    assert nav
+    dates = sorted(nav.keys())
+    terminal_nav = nav[dates[-1]]
+    assert payload["total_return"] == pytest.approx(terminal_nav - 1.0, rel=1e-9)

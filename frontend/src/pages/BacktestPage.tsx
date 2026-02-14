@@ -141,14 +141,18 @@ export default function BacktestPage() {
   })
 
   const createRun = useMutation({
-    mutationFn: () =>
-      backtestApi.create({
+    mutationFn: () => {
+      const parsedCost = Number(costBps)
+      const parsedLookback = Number(lookback)
+      const payload = {
         portfolio_id: selectedPortfolioId,
         strategy,
         benchmark,
-        cost_bps: Number(costBps),
-        lookback_days: Number(lookback),
-      }),
+        cost_bps: Number.isFinite(parsedCost) ? parsedCost : 10,
+        lookback_days: Number.isFinite(parsedLookback) ? Math.max(21, Math.round(parsedLookback)) : 63,
+      }
+      return backtestApi.create(payload)
+    },
     onSuccess: (data: { run_id: number }) => {
       setErrorMsg(null)
       setActiveRunId(data.run_id)

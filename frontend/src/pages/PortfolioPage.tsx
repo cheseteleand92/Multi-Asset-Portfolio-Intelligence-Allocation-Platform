@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Treemap, ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts'
 import { analyticsApi, portfolioApi } from '@/lib/api'
 import { useAppStore } from '@/lib/store'
 import WhatIfDrawer from '@/components/WhatIfDrawer'
@@ -46,7 +46,7 @@ export default function PortfolioPage() {
   const [baseCurrency, setBaseCurrency] = useState('USD')
   const [cumTargetId, setCumTargetId] = useState<string>('portfolio')
 
-  const { data: analytics } = useQuery<Analytics>({
+  const { data: analytics, isLoading: analyticsLoading, isError: analyticsError } = useQuery<Analytics>({
     queryKey: ['analytics', selectedPortfolioId, lookbackDays, returnFrequency, baseCurrency],
     queryFn: () =>
       analyticsApi.getAnalytics(selectedPortfolioId!, {
@@ -90,6 +90,11 @@ export default function PortfolioPage() {
     .map(([ticker, value]) => ({ name: ticker, size: value }))
     .filter((x) => x.size > 0)
   const totalValue = treemapData.reduce((acc, row) => acc + row.size, 0)
+  const allocationData = treemapData.map((row) => ({
+    ...row,
+    weightPct: totalValue > 0 ? (row.size / totalValue) * 100 : 0,
+  }))
+  const allocationColors = ['#0ea5e9', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#64748b']
 
   const cumulativeChartData = (() => {
     const source =
@@ -175,6 +180,9 @@ export default function PortfolioPage() {
               ))}
             </div>
           )}
+          {analyticsError && (
+            <p className="text-xs text-destructive mt-2">Failed to load monitoring analytics data.</p>
+          )}
         </CardContent>
       </Card>
 
@@ -253,14 +261,50 @@ export default function PortfolioPage() {
           </Button>
         </CardHeader>
         <CardContent>
-          {totalValue <= 0 ? (
+          {analyticsLoading ? (
+            <p className="text-xs text-muted-foreground">Loading allocation...</p>
+          ) : totalValue <= 0 ? (
             <p className="text-xs text-muted-foreground">No allocation value available for current holdings.</p>
           ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <Treemap data={treemapData} dataKey="size" nameKey="name" stroke="#18181b" fill="#3f3f46">
-                <Tooltip formatter={(v: unknown) => `${analytics?.base_currency ?? 'USD'} ${(v as number).toLocaleString()}`} />
-              </Treemap>
-            </ResponsiveContainer>
+            <div className="grid grid-cols-2 gap-4">
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie data={allocationData} dataKey="size" nameKey="name" innerRadius={46} outerRadius={84} paddingAngle={2}>
+                    {allocationData.map((entry, idx) => (
+                      <Cell key={`${entry.name}-${idx}`} fill={allocationColors[idx % allocationColors.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(v: unknown, _name: string, item: { payload?: { weightPct?: number } }) => {
+                      const pct = item.payload?.weightPct ?? 0
+                      return [
+                        `${analytics?.base_currency ?? 'USD'} ${(v as number).toLocaleString()} (${pct.toFixed(2)}%)`,
+                        'Value',
+                      ]
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="space-y-1 overflow-auto max-h-[220px] pr-1">
+                {allocationData
+                  .slice()
+                  .sort((a, b) => b.size - a.size)
+                  .map((row, idx) => (
+                    <div key={row.name} className="flex items-center justify-between text-xs">
+                      <span className="truncate pr-2" title={row.name}>
+                        <span
+                          className="inline-block w-2 h-2 rounded-full mr-2 align-middle"
+                          style={{ backgroundColor: allocationColors[idx % allocationColors.length] }}
+                        />
+                        {row.name}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {row.weightPct.toFixed(1)}%
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -289,14 +333,16 @@ export default function PortfolioPage() {
                   <TableCell className="text-xs text-right">{p.quantity.toLocaleString()}</TableCell>
                   <TableCell className="text-xs text-right">${p.cost_price.toFixed(2)}</TableCell>
                   <TableCell className="text-xs text-right font-medium">
-                    {analytics?.position_values_base?.[p.ticker] != null
+                    {analyticsLoading
+                      ? 'Loading...'
+                      : analytics?.position_values_base?.[p.ticker] != null
                       ? (() => {
                           const tickerValue = analytics.position_values_base?.[p.ticker] ?? 0
                           const tickerQty = quantityByTicker[p.ticker] ?? 0
                           const positionValue = tickerQty > 0 ? (tickerValue * p.quantity) / tickerQty : tickerValue
                           return `${analytics.base_currency ?? 'USD'} ${positionValue.toLocaleString()}`
                         })()
-                      : '—'}
+                      : `${p.currency} ${(p.quantity * p.cost_price).toLocaleString()} (cost)`}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">{p.currency}</TableCell>
                 </TableRow>
