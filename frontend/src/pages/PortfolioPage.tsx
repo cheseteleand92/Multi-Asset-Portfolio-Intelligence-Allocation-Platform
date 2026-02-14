@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -62,6 +62,16 @@ export default function PortfolioPage() {
     enabled: !!selectedPortfolioId,
   })
 
+  const assetSeriesKeys = useMemo(
+    () => Object.keys(analytics?.asset_nav ?? {}),
+    [analytics?.asset_nav],
+  )
+  const seriesOptions = useMemo(
+    () => ['portfolio', ...assetSeriesKeys],
+    [assetSeriesKeys],
+  )
+  const selectedCumTarget = seriesOptions.includes(cumTarget) ? cumTarget : 'portfolio'
+
   if (!selectedPortfolioId) {
     return <div className="text-muted-foreground text-sm">Select a portfolio from the header to begin.</div>
   }
@@ -72,8 +82,12 @@ export default function PortfolioPage() {
     name: p.ticker,
     size: p.quantity * p.cost_price,
   }))
+
   const cumulativeChartData = (() => {
-    const source = cumTarget === 'portfolio' ? analytics?.nav : analytics?.asset_nav?.[cumTarget]
+    const source =
+      selectedCumTarget === 'portfolio'
+        ? analytics?.nav
+        : analytics?.asset_nav?.[selectedCumTarget]
     if (!source) return []
     return Object.entries(source)
       .sort(([a], [b]) => a.localeCompare(b))
@@ -188,28 +202,33 @@ export default function PortfolioPage() {
       <Card className="bg-card border-border">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-sm">Cumulative Return</CardTitle>
-          <Select value={cumTarget} onValueChange={setCumTarget}>
+          <Select value={selectedCumTarget} onValueChange={setCumTarget}>
             <SelectTrigger className="w-52 h-8 bg-muted/40 border-border text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="portfolio">Portfolio</SelectItem>
-              {positions.map((p) => (
-                <SelectItem key={p.ticker} value={p.ticker}>{p.ticker}</SelectItem>
+              {seriesOptions.map((opt) => (
+                <SelectItem key={opt} value={opt}>
+                  {opt === 'portfolio' ? 'Portfolio' : opt}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={cumulativeChartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" strokeOpacity={0.3} />
-              <XAxis dataKey="date" tickFormatter={(v: string) => v.slice(2, 10)} tick={{ fontSize: 11 }} />
-              <YAxis tickFormatter={(v: number) => `${v.toFixed(1)}%`} tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(v: number) => `${v.toFixed(2)}%`} />
-              <Line type="monotone" dataKey="cumret" stroke="#0ea5e9" strokeWidth={2.2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
+          {cumulativeChartData.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No cumulative return series for selected target.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={cumulativeChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" strokeOpacity={0.3} />
+                <XAxis dataKey="date" tickFormatter={(v: string) => v.slice(2, 10)} tick={{ fontSize: 11 }} />
+                <YAxis tickFormatter={(v: number) => `${v.toFixed(1)}%`} tick={{ fontSize: 11 }} />
+                <Tooltip formatter={(v: number) => `${v.toFixed(2)}%`} />
+                <Line type="monotone" dataKey="cumret" stroke="#0ea5e9" strokeWidth={2.2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
 
