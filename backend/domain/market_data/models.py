@@ -1,7 +1,10 @@
 from __future__ import annotations
+
 from datetime import date, datetime
+
 from sqlalchemy import Date, DateTime, Float, Integer, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
+
 from backend.database import Base
 
 

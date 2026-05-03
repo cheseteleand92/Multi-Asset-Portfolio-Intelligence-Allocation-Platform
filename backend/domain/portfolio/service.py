@@ -1,10 +1,13 @@
 from __future__ import annotations
+
 import csv
 import io
 from datetime import date
+
 import numpy as np
 import pandas as pd
 from sqlalchemy.orm import Session
+
 from backend.domain.market_data.models import MarketData
 from backend.domain.portfolio.models import Portfolio, Position
 from backend.schemas.portfolio import PortfolioCreate, PositionCreate, PositionUpdate
@@ -96,12 +99,48 @@ def seed_demo_etf_portfolio(db: Session, replace: bool = True) -> tuple[Portfoli
         db.query(Position).filter_by(portfolio_id=portfolio.id).delete()
 
     holdings = [
-        {"ticker": "SPY US Equity", "asset_class": "US Equity", "quantity": 120.0, "cost_price": 420.0, "currency": "USD"},
-        {"ticker": "IEF US Equity", "asset_class": "US Treasury", "quantity": 200.0, "cost_price": 95.0, "currency": "USD"},
-        {"ticker": "GLD US Equity", "asset_class": "Gold", "quantity": 80.0, "cost_price": 180.0, "currency": "USD"},
-        {"ticker": "VNQ US Equity", "asset_class": "REIT", "quantity": 100.0, "cost_price": 85.0, "currency": "USD"},
-        {"ticker": "EEM US Equity", "asset_class": "EM Equity", "quantity": 110.0, "cost_price": 42.0, "currency": "USD"},
-        {"ticker": "1306 JT Equity", "asset_class": "Japan Equity", "quantity": 140.0, "cost_price": 2400.0, "currency": "JPY"},
+        {
+            "ticker": "SPY US Equity",
+            "asset_class": "US Equity",
+            "quantity": 120.0,
+            "cost_price": 420.0,
+            "currency": "USD",
+        },
+        {
+            "ticker": "IEF US Equity",
+            "asset_class": "US Treasury",
+            "quantity": 200.0,
+            "cost_price": 95.0,
+            "currency": "USD",
+        },
+        {
+            "ticker": "GLD US Equity",
+            "asset_class": "Gold",
+            "quantity": 80.0,
+            "cost_price": 180.0,
+            "currency": "USD",
+        },
+        {
+            "ticker": "VNQ US Equity",
+            "asset_class": "REIT",
+            "quantity": 100.0,
+            "cost_price": 85.0,
+            "currency": "USD",
+        },
+        {
+            "ticker": "EEM US Equity",
+            "asset_class": "EM Equity",
+            "quantity": 110.0,
+            "cost_price": 42.0,
+            "currency": "USD",
+        },
+        {
+            "ticker": "1306 JT Equity",
+            "asset_class": "Japan Equity",
+            "quantity": 140.0,
+            "cost_price": 2400.0,
+            "currency": "JPY",
+        },
     ]
 
     existing = {
@@ -143,7 +182,7 @@ def seed_demo_etf_portfolio(db: Session, replace: bool = True) -> tuple[Portfoli
     for ticker, (drift, vol) in series_cfg.items():
         rets = rng.normal(loc=drift, scale=vol, size=len(dates))
         prices = base_levels[ticker] * np.cumprod(1 + rets)
-        for dt, px in zip(dates, prices):
+        for dt, px in zip(dates, prices, strict=True):
             row = db.query(MarketData).filter_by(ticker=ticker, date=dt.date()).first()
             if row is None:
                 row = MarketData(ticker=ticker, date=dt.date(), close=float(px), source="seed")

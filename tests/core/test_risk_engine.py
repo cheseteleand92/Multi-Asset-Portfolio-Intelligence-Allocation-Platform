@@ -1,8 +1,12 @@
 
-import pytest
-import pandas as pd
 import numpy as np
-from core.risk_engine import portfolio_volatility, marginal_risk_contribution, total_risk_contribution
+
+from core.risk_engine import (
+    marginal_risk_contribution,
+    portfolio_volatility,
+    total_risk_contribution,
+)
+
 
 def test_portfolio_volatility(sample_weights, sample_covariance):
     # Manually calculate expected vol
@@ -30,7 +34,10 @@ def test_marginal_risk_contribution(sample_weights, sample_covariance):
     # Property: sum(w * mrc) = portfolio_vol (daily, since mrc is based on cov directly usually?)
     # Wait, let's check implementation of mrc. 
     # mrc = (sigma @ w) / port_vol. 
-    # w * mrc = w * (sigma @ w) / port_vol = (w @ sigma @ w) / port_vol = port_vol^2 / port_vol = port_vol.
+    # w * mrc = w * (sigma @ w) / port_vol
+    #             = (w @ sigma @ w) / port_vol
+    #             = port_vol^2 / port_vol
+    #             = port_vol.
     # The implementation in risk_engine uses raw cov, so it returns daily MRC.
     
     w = sample_weights

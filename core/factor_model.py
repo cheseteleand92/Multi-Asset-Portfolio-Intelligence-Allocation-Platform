@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Dict
 
 import numpy as np
 import pandas as pd
@@ -97,7 +97,11 @@ class FactorModel:
         exposures = self.estimate_exposures(asset_returns, factor_returns, add_intercept=False)
         factor_cov = self.estimate_factor_covariance(factor_returns)
         specific_var = self.estimate_specific_variance(asset_returns, factor_returns, exposures)
-        return FactorModelResult(exposures=exposures, factor_cov=factor_cov, specific_var=specific_var)
+        return FactorModelResult(
+            exposures=exposures,
+            factor_cov=factor_cov,
+            specific_var=specific_var,
+        )
 
     @staticmethod
     def portfolio_risk_decomposition(

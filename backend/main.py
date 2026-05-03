@@ -1,14 +1,17 @@
 """FastAPI application entry point."""
 from __future__ import annotations
+
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from backend.database import create_tables
-from backend.domain.portfolio.router import router as portfolio_router
-from backend.domain.market_data.router import router as market_data_router
 from backend.domain.analytics.router import router as analytics_router
-from backend.domain.signals.router import router as signals_router
 from backend.domain.backtest.router import router as backtest_router
+from backend.domain.market_data.router import router as market_data_router
+from backend.domain.portfolio.router import router as portfolio_router
+from backend.domain.signals.router import router as signals_router
 
 
 @asynccontextmanager

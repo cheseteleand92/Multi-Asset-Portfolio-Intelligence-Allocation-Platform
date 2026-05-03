@@ -1,21 +1,27 @@
 from __future__ import annotations
+
+from typing import Annotated, Any
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+
 from backend.deps import get_bloomberg_client, get_db
 from backend.domain.market_data import service
 from backend.domain.portfolio.models import Position
 
 router = APIRouter(tags=["market_data"])
+BloombergClient = Annotated[Any | None, Depends(get_bloomberg_client)]
+DbSession = Annotated[Session, Depends(get_db)]
 
 
 @router.get("/market-data/{ticker}")
-def get_prices(ticker: str, db: Session = Depends(get_db)):
+def get_prices(ticker: str, db: DbSession):
     rows = service.get_cached_prices(db, ticker)
     return [{"date": r.date.isoformat(), "close": r.close} for r in rows]
 
 
 @router.post("/market-data/refresh")
-def refresh_all(db: Session = Depends(get_db), bbg=Depends(get_bloomberg_client)):
+def refresh_all(db: DbSession, bbg: BloombergClient):
     rows = db.query(Position.ticker, Position.currency).distinct().all()
     tickers = {t for t, _ in rows}
     # Include FX pairs needed for base-currency portfolio monitoring (USD base).

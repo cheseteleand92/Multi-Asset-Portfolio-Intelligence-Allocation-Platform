@@ -1,8 +1,10 @@
 
-import pytest
-import pandas as pd
 import numpy as np
+import pandas as pd
+import pytest
+
 from core.portfolio import Portfolio
+
 
 def test_portfolio_normalization():
     w = pd.Series([0.5, 1.5], index=["A", "B"])

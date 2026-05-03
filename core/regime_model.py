@@ -8,4 +8,7 @@ def simple_risk_on_off(equity_returns: pd.Series, vol_index: pd.Series) -> pd.Se
     """Rule-based risk regime classifier."""
     aligned = pd.concat([equity_returns, vol_index], axis=1).dropna()
     aligned.columns = ["eq", "vix"]
-    return ((aligned["eq"].rolling(20).mean() > 0) & (aligned["vix"] < aligned["vix"].rolling(60).mean())).astype(int)
+    signal = (aligned["eq"].rolling(20).mean() > 0) & (
+        aligned["vix"] < aligned["vix"].rolling(60).mean()
+    )
+    return signal.astype(int)

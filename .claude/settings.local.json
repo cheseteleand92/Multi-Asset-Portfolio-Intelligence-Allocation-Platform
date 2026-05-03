@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(python -c:*)",
+      "Bash(pip install:*)",
+      "Bash(git stash:*)",
+      "Bash(node --version:*)",
+      "Bash(npm --version:*)",
+      "Bash(npm create:*)",
+      "Bash(npm install:*)",
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run build:*)",
+      "Bash(uvicorn backend.main:app --reload:*)",
+      "Bash(F:/Miniconda/envs/multi_asset/python.exe -m pip install:*)",
+      "Bash(F:/Miniconda/envs/multi_asset/python.exe:*)",
+      "Bash(curl:*)",
+      "Bash(find:*)",
+      "Bash(npm run dev:*)"
+    ]
+  }
+}

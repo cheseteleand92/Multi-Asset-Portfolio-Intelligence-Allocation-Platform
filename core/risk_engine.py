@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 
 
-
 def portfolio_volatility(weights: pd.Series, cov: pd.DataFrame, annualization: int = 252) -> float:
     """Compute annualized volatility from covariance matrix.
 
@@ -47,13 +46,18 @@ def historical_es(returns: pd.Series, alpha: float = 0.95) -> float:
     return float(tail.mean()) if len(tail) else float(var)
 
 
-def parametric_var(weights: pd.Series, cov: pd.DataFrame, alpha: float = 0.95, z_score: float = None) -> float:
+def parametric_var(
+    weights: pd.Series,
+    cov: pd.DataFrame,
+    alpha: float = 0.95,
+    z_score: float = None,
+) -> float:
     """Parametric (Gaussian) Value-at-Risk."""
     from scipy.stats import norm
-    
+
     if z_score is None:
         z_score = norm.ppf(alpha)
-        
+
     vol = portfolio_volatility(weights, cov, annualization=1)  # Daily vol
     return float(z_score * vol)
 
@@ -66,12 +70,16 @@ def max_drawdown(returns: pd.Series) -> float:
     return float(dd.min())
 
 
-def sortino_ratio(returns: pd.Series, target_return: float = 0.0, annualization: int = 252) -> float:
+def sortino_ratio(
+    returns: pd.Series,
+    target_return: float = 0.0,
+    annualization: int = 252,
+) -> float:
     """Compute Sortino Ratio (return / downside deviation)."""
     excess_return = returns - target_return / annualization
     downside_returns = excess_return[excess_return < 0]
     downside_dev = np.sqrt(np.mean(downside_returns**2)) * np.sqrt(annualization)
-    
+
     mean_ret = returns.mean() * annualization
     if np.isclose(downside_dev, 0.0):
         return np.inf if mean_ret > 0 else -np.inf
@@ -87,7 +95,11 @@ def calmar_ratio(returns: pd.Series, annualization: int = 252) -> float:
     return float(cagr / mdd)
 
 
-def information_ratio(returns: pd.Series, benchmark_returns: pd.Series, annualization: int = 252) -> float:
+def information_ratio(
+    returns: pd.Series,
+    benchmark_returns: pd.Series,
+    annualization: int = 252,
+) -> float:
     """Compute Information Ratio (active return / tracking error)."""
     active_ret = returns - benchmark_returns
     tracking_error = active_ret.std() * np.sqrt(annualization)

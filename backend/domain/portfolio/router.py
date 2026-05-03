@@ -1,6 +1,10 @@
 from __future__ import annotations
+
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
+
 from backend.deps import get_db
 from backend.domain.portfolio import service
 from backend.schemas.portfolio import (
@@ -12,35 +16,37 @@ from backend.schemas.portfolio import (
 )
 
 router = APIRouter(tags=["portfolio"])
+DbSession = Annotated[Session, Depends(get_db)]
+ReplaceArg = Annotated[bool, Query()]
 
 
 @router.get("/portfolios", response_model=list[PortfolioRead])
-def list_portfolios(db: Session = Depends(get_db)):
+def list_portfolios(db: DbSession):
     return service.list_portfolios(db)
 
 
 @router.post("/portfolios", response_model=PortfolioRead, status_code=201)
-def create_portfolio(data: PortfolioCreate, db: Session = Depends(get_db)):
+def create_portfolio(data: PortfolioCreate, db: DbSession):
     return service.create_portfolio(db, data)
 
 
 @router.get("/portfolios/{portfolio_id}/positions", response_model=list[PositionRead])
-def get_positions(portfolio_id: int, db: Session = Depends(get_db)):
+def get_positions(portfolio_id: int, db: DbSession):
     return service.get_positions(db, portfolio_id)
 
 
 @router.post("/portfolios/{portfolio_id}/positions", response_model=PositionRead, status_code=201)
-def add_position(portfolio_id: int, data: PositionCreate, db: Session = Depends(get_db)):
+def add_position(portfolio_id: int, data: PositionCreate, db: DbSession):
     return service.add_position(db, portfolio_id, data)
 
 
 @router.delete("/positions/{position_id}", status_code=204)
-def delete_position(position_id: int, db: Session = Depends(get_db)):
+def delete_position(position_id: int, db: DbSession):
     service.delete_position(db, position_id)
 
 
 @router.put("/positions/{position_id}", response_model=PositionRead)
-def update_position(position_id: int, data: PositionUpdate, db: Session = Depends(get_db)):
+def update_position(position_id: int, data: PositionUpdate, db: DbSession):
     updated = service.update_position(db, position_id, data)
     if updated is None:
         raise HTTPException(status_code=404, detail="Position not found")
@@ -51,19 +57,20 @@ def update_position(position_id: int, data: PositionUpdate, db: Session = Depend
 async def import_csv(
     portfolio_id: int,
     file: UploadFile,
-    replace: bool = Query(False),
-    db: Session = Depends(get_db),
+    replace: ReplaceArg = False,
+    *,
+    db: DbSession,
 ):
     content = await file.read()
     try:
         count = service.import_csv(db, portfolio_id, content, replace=replace)
     except (KeyError, ValueError) as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {"imported": count}
 
 
 @router.post("/portfolios/demo/etf")
-def seed_demo_etf(replace: bool = Query(True), db: Session = Depends(get_db)):
+def seed_demo_etf(replace: ReplaceArg = True, *, db: DbSession):
     portfolio, positions_count, seeded_rows = service.seed_demo_etf_portfolio(db, replace=replace)
     return {
         "portfolio_id": portfolio.id,

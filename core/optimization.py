@@ -6,6 +6,80 @@ import numpy as np
 import pandas as pd
 
 
+def _empty_covariance(columns: pd.Index) -> pd.DataFrame:
+    size = len(columns)
+    return pd.DataFrame(np.zeros((size, size)), index=columns, columns=columns)
+
+
+def _ewma_covariance(returns: pd.DataFrame, span: int = 60) -> pd.DataFrame:
+    span = max(2, min(int(span), len(returns)))
+    alpha = 2.0 / (span + 1.0)
+    weights = (1.0 - alpha) ** np.arange(len(returns) - 1, -1, -1)
+    weights = weights / weights.sum()
+
+    values = returns.to_numpy(dtype=float, copy=True)
+    mean = np.average(values, axis=0, weights=weights)
+    centered = values - mean
+    normalization = max(1.0 - np.square(weights).sum(), np.finfo(float).eps)
+    cov_values = (centered * weights[:, None]).T @ centered / normalization
+    cov_values = 0.5 * (cov_values + cov_values.T)
+    return pd.DataFrame(cov_values, index=returns.columns, columns=returns.columns)
+
+
+def _shrink_covariance(sample_cov: pd.DataFrame, alpha: float = 0.35) -> pd.DataFrame:
+    shrinkage = float(np.clip(alpha, 0.0, 1.0))
+    diagonal_target = pd.DataFrame(
+        np.diag(np.diag(sample_cov)),
+        index=sample_cov.index,
+        columns=sample_cov.columns,
+    )
+    shrunk = (1.0 - shrinkage) * sample_cov + shrinkage * diagonal_target
+    return 0.5 * (shrunk + shrunk.T)
+
+
+def estimate_covariance(
+    returns: pd.DataFrame,
+    method: str = "sample",
+    ewma_span: int = 60,
+    shrinkage_alpha: float = 0.35,
+) -> pd.DataFrame:
+    """Estimate a covariance matrix for allocator research.
+
+    Supported methods:
+    - sample: standard sample covariance
+    - ewma: exponentially weighted covariance
+    - shrinkage: diagonal shrinkage of sample covariance
+    - ensemble: average of sample, ewma, and shrinkage estimates
+    """
+    columns = returns.columns
+    if len(columns) == 0:
+        return pd.DataFrame(dtype=float)
+
+    clean = returns.replace([np.inf, -np.inf], np.nan).dropna(how="any")
+    if clean.empty:
+        return _empty_covariance(columns)
+
+    sample_cov = clean.cov().reindex(index=columns, columns=columns).fillna(0.0)
+    if method == "sample":
+        return sample_cov
+    if method == "ewma":
+        return _ewma_covariance(clean, span=ewma_span).reindex(
+            index=columns,
+            columns=columns,
+        ).fillna(0.0)
+    if method == "shrinkage":
+        return _shrink_covariance(sample_cov, alpha=shrinkage_alpha)
+    if method == "ensemble":
+        ewma_cov = _ewma_covariance(clean, span=ewma_span)
+        shrink_cov = _shrink_covariance(sample_cov, alpha=shrinkage_alpha)
+        ensemble = (sample_cov + ewma_cov + shrink_cov) / 3.0
+        return 0.5 * (ensemble + ensemble.T)
+    raise ValueError(
+        "Unsupported covariance method "
+        f"'{method}'. Supported: sample, ewma, shrinkage, ensemble"
+    )
+
+
 def mean_variance_opt(
     exp_returns: pd.Series,
     cov: pd.DataFrame,
@@ -59,11 +133,23 @@ def hierarchical_risk_parity(cov: pd.DataFrame) -> pd.Series:
     Uses single-linkage clustering to sort assets and recursive bisection 
     for allocation.
     """
-    from scipy.cluster.hierarchy import linkage, to_tree
+    from scipy.cluster.hierarchy import linkage
     from scipy.spatial.distance import squareform
 
-    corr = cov.corr()
-    dist = np.sqrt(0.5 * (1 - corr))
+    cov_values = cov.to_numpy(dtype=float, copy=True)
+    variances = np.diag(cov_values)
+    vol = np.sqrt(np.clip(variances, 0.0, None))
+    denom = np.outer(vol, vol)
+    corr_values = np.divide(
+        cov_values,
+        denom,
+        out=np.zeros_like(cov_values),
+        where=denom > 0,
+    )
+    corr_values = np.clip(corr_values, -1.0, 1.0)
+    np.fill_diagonal(corr_values, 1.0)
+    dist_values = np.sqrt(np.clip(0.5 * (1.0 - corr_values), 0.0, 1.0))
+    dist = pd.DataFrame(dist_values, index=cov.index, columns=cov.columns)
     
     # 1. Clustering
     # squareform to convert to condensed distance matrix if needed, or pass directly
@@ -95,8 +181,7 @@ def hierarchical_risk_parity(cov: pd.DataFrame) -> pd.Series:
     # But we need to handle if cov is not perfectly aligned index-wise? 
     # We'll rely on integer indexing of cov.
     
-    # Actually, let's implement a simpler recursive bisection without full re-sorting if complexity is high,
-    # but HRP relies on the sort.
+    # Keep the standard leaf ordering from scipy for quasi-diagonalization.
     
     # Simpler approach to get sort order from dendrogram
     # (Scipy to_tree/dendrogram leaf order is essentially quasi-diagonal)
@@ -121,13 +206,15 @@ def hierarchical_risk_parity(cov: pd.DataFrame) -> pd.Series:
         
         # Inverse variance weights for the two clusters
         # Var_cluster = w' Sigma w. But we don't know w_cluster yet?
-        # HRP paper simplifies: Var_cluster = variance of an inverse-variance allocated portfolio within cluster
+        # HRP uses the variance of an inverse-variance allocated portfolio
+        # within each cluster.
         # Or simpler: trace/diagonal sum?
-        # Standard HRP uses inverse-variance allocation *within* the cluster to determine cluster variance.
+        # Standard HRP uses inverse-variance allocation within the cluster
+        # to determine cluster variance.
         
         def get_cluster_var(c_cov):
             # Inverse variance weights
-            inv_diag = 1 / np.diag(c_cov)
+            inv_diag = 1 / np.clip(np.diag(c_cov), np.finfo(float).eps, None)
             w_c = inv_diag / inv_diag.sum()
             return w_c.T @ c_cov @ w_c
 

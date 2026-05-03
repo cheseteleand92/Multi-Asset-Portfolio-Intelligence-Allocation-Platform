@@ -1,9 +1,12 @@
 from __future__ import annotations
+
 from datetime import date
+from typing import Annotated, Any
+
 import pandas as pd
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi import Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+
 from backend.deps import get_db
 from backend.domain.analytics import service
 from backend.domain.analytics.stress import SCENARIOS, run_scenario
@@ -15,6 +18,14 @@ from backend.domain.market_data.service import (
 from backend.domain.portfolio.service import get_positions
 
 router = APIRouter(tags=["analytics"])
+DbSession = Annotated[Session, Depends(get_db)]
+AnalyticsLookback = Annotated[int, Query(ge=21, le=5000)]
+AnnualizationArg = Annotated[int | None, Query(ge=1, le=5000)]
+ReturnFrequencyArg = Annotated[str, Query()]
+RiskFreeRateArg = Annotated[float, Query()]
+BaseCurrencyArg = Annotated[str, Query(min_length=3, max_length=3)]
+ConfidenceArg = Annotated[float, Query(ge=0.80, le=0.995)]
+AsOfDateArg = Annotated[date | None, Query()]
 
 
 def _portfolio_data(portfolio_id: int, db: Session, base_currency: str = "USD"):
@@ -32,7 +43,11 @@ def _portfolio_data(portfolio_id: int, db: Session, base_currency: str = "USD"):
 
     returns, fx_warnings, fx_used = positions_to_base_returns(db, positions, base_currency=base)
     values_base, value_warnings, _ = position_values_base(db, positions, base_currency=base)
-    valuation_rows, valuation_warnings, _ = position_valuation_breakdown(db, positions, base_currency=base)
+    valuation_rows, valuation_warnings, _ = position_valuation_breakdown(
+        db,
+        positions,
+        base_currency=base,
+    )
 
     weights: dict[str, float] = {}
     total_value = sum(values_base.values())
@@ -78,13 +93,14 @@ def _monitoring_config(
 @router.get("/portfolios/{portfolio_id}/analytics")
 def get_analytics(
     portfolio_id: int,
-    lookback_days: int = Query(252, ge=21, le=5000),
-    return_frequency: str = Query("daily"),
-    annualization: int | None = Query(None, ge=1, le=5000),
-    risk_free_rate: float = Query(0.0),
-    base_currency: str = Query("USD", min_length=3, max_length=3),
-    as_of_date: date | None = Query(None),
-    db: Session = Depends(get_db),
+    lookback_days: AnalyticsLookback = 252,
+    return_frequency: ReturnFrequencyArg = "daily",
+    annualization: AnnualizationArg = None,
+    risk_free_rate: RiskFreeRateArg = 0.0,
+    base_currency: BaseCurrencyArg = "USD",
+    as_of_date: AsOfDateArg = None,
+    *,
+    db: DbSession,
 ):
     weights, returns, meta = _portfolio_data(portfolio_id, db, base_currency=base_currency)
     config = _monitoring_config(
@@ -110,14 +126,15 @@ def get_analytics(
 @router.get("/portfolios/{portfolio_id}/risk")
 def get_risk(
     portfolio_id: int,
-    lookback_days: int = Query(252, ge=21, le=5000),
-    return_frequency: str = Query("daily"),
-    confidence_level: float = Query(0.95, ge=0.80, le=0.995),
-    annualization: int | None = Query(None, ge=1, le=5000),
-    risk_free_rate: float = Query(0.0),
-    base_currency: str = Query("USD", min_length=3, max_length=3),
-    as_of_date: date | None = Query(None),
-    db: Session = Depends(get_db),
+    lookback_days: AnalyticsLookback = 252,
+    return_frequency: ReturnFrequencyArg = "daily",
+    confidence_level: ConfidenceArg = 0.95,
+    annualization: AnnualizationArg = None,
+    risk_free_rate: RiskFreeRateArg = 0.0,
+    base_currency: BaseCurrencyArg = "USD",
+    as_of_date: AsOfDateArg = None,
+    *,
+    db: DbSession,
 ):
     weights, returns, meta = _portfolio_data(portfolio_id, db, base_currency=base_currency)
     config = _monitoring_config(
@@ -137,7 +154,7 @@ def get_risk(
 
 
 @router.post("/portfolios/{portfolio_id}/what-if")
-def what_if(portfolio_id: int, body: dict, db: Session = Depends(get_db)):
+def what_if(portfolio_id: int, body: dict[str, Any], db: DbSession):
     adjusted_weights: dict = body.get("adjusted_weights", {})
     _, returns, _ = _portfolio_data(portfolio_id, db, base_currency="USD")
     return service.compute_risk(returns, adjusted_weights)
@@ -149,7 +166,7 @@ def list_scenarios():
 
 
 @router.post("/portfolios/{portfolio_id}/stress-test")
-def stress_test(portfolio_id: int, body: dict, db: Session = Depends(get_db)):
+def stress_test(portfolio_id: int, body: dict[str, Any], db: DbSession):
     scenario_id = body.get("scenario_id")
     if scenario_id not in SCENARIOS:
         raise HTTPException(status_code=404, detail="Unknown scenario")

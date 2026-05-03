@@ -31,7 +31,7 @@ A professional Python platform for multi-asset monitoring, factor risk modeling,
   - **Macro Intelligence**: Yield Curves, Credit Spreads, Regime Signals.
  
 ### 4. **Production Engineering**
-- **Backtesting**: Walk-forward engine with **Transaction Cost** modeling (bps) and Turnover tracking.
+- **Backtesting**: Walk-forward engine with **Transaction Cost** modeling (bps), turnover tracking, and optional drift-threshold rebalancing.
 - **Architecture**: Modular `src` layout with Dependency Injection (FastAPI `Depends`).
 - **Quality**: Full `pytest` suite, Type hinting (`mypy`), and `pydantic` schemas.
  
@@ -88,8 +88,45 @@ python tests/run_demo.py
 Execute the unit test suite:
  
 ```bash
-pytest
+python -m pytest
 ```
+
+### 4. Research Backtests
+Use the walk-forward engine directly when you want to study execution assumptions:
+
+```python
+engine = BacktestEngine(rebalance_freq="ME")
+result = engine.run(
+    returns,
+    allocator=my_allocator,
+    lookback=252,
+    cost_bps=10.0,
+    rebalance_threshold=0.05,
+)
+
+turnover = result.turnover
+transaction_costs = result.transaction_costs
+```
+
+`rebalance_threshold` is optional. When set, the engine still computes target weights on scheduled rebalance dates but only trades when the drift versus current weights is large enough to justify turnover.
+
+Backtests launched through the API also accept `covariance_method` for covariance-sensitive strategies:
+
+- `sample`
+- `ewma`
+- `shrinkage`
+- `ensemble`
+
+Backtests launched through the API also support an optional regime-aware exposure overlay:
+
+- `regime_overlay`: enable the overlay heuristic, for example `trend`
+- `risk_on_exposure`: target gross exposure in risk-on conditions
+- `risk_off_exposure`: target gross exposure in risk-off conditions
+- `benchmark_regime_overlay`: optional benchmark flag, default `false`
+
+For research sweeps, use `POST /api/backtests/sweep` with parameter grids such as `lookback_days_grid`, `cost_bps_grid`, `rebalance_threshold_grid`, `covariance_method_grid`, `regime_overlay_grid`, `risk_on_exposure_grid`, and `risk_off_exposure_grid`. The response returns one summary row per parameter combination, including return, volatility, drawdown, turnover, and transaction-cost metrics.
+
+When a backtest is configured with a benchmark, `GET /api/backtests/{run_id}` now also returns a `relative_attribution` block with benchmark-relative summary metrics and a daily series of active return and active share.
  
 ---
  

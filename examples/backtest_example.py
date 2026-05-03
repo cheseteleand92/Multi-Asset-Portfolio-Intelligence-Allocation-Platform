@@ -21,12 +21,20 @@ def main() -> None:
     raw = np.random.normal(0.0003, 0.01, (len(dates), len(assets)))
     returns = pd.DataFrame(raw, index=dates, columns=assets)
 
-    engine = BacktestEngine(rebalance_freq="M")
-    result = engine.run(returns, allocator=allocator, lookback=252)
+    engine = BacktestEngine(rebalance_freq="ME")
+    result = engine.run(
+        returns,
+        allocator=allocator,
+        lookback=252,
+        cost_bps=10.0,
+        rebalance_threshold=0.05,
+    )
 
     print("Final NAV:", round(result.nav.iloc[-1], 2))
     print("Annualized Return:", round(result.returns.mean() * 252, 4))
     print("Annualized Vol:", round(result.returns.std() * (252**0.5), 4))
+    print("Average Daily Turnover:", round(result.turnover.mean(), 4))
+    print("Total Transaction Cost Drag:", round(result.transaction_costs.sum(), 6))
 
 
 if __name__ == "__main__":

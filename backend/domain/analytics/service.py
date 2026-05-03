@@ -7,17 +7,19 @@ Adapts core/risk_engine.py actual API:
   - max_drawdown(returns: pd.Series) -> float
 """
 from __future__ import annotations
+
 from datetime import date
+
 import numpy as np
 import pandas as pd
+
 from core.risk_engine import (
-    portfolio_volatility,
-    historical_var,
     historical_es,
+    historical_var,
     max_drawdown,
+    portfolio_volatility,
     total_risk_contribution,
 )
-
 
 DEFAULT_MONITORING_CONFIG = {
     "lookback_days": 252,
@@ -64,7 +66,9 @@ def _normalize_config(config: dict | None) -> dict:
     }
 
 
-def _prepare_returns(returns: pd.DataFrame, config_used: dict) -> tuple[pd.DataFrame, list[str], dict]:
+def _prepare_returns(
+    returns: pd.DataFrame, config_used: dict
+) -> tuple[pd.DataFrame, list[str], dict]:
     warnings: list[str] = []
     prepared = returns.copy()
 
@@ -84,7 +88,8 @@ def _prepare_returns(returns: pd.DataFrame, config_used: dict) -> tuple[pd.DataF
     requested_lookback = config_used["lookback_days"]
     if len(prepared) < requested_lookback:
         warnings.append(
-            f"Requested lookback {requested_lookback} exceeds available observations {len(prepared)}. "
+            f"Requested lookback {requested_lookback} exceeds available observations "
+            f"{len(prepared)}. "
             "Using full available history."
         )
     lookback = min(requested_lookback, len(prepared))
@@ -143,7 +148,21 @@ def _compute_risk_explainability(
     }
 
 
-def compute_risk(returns: pd.DataFrame, weights: dict[str, float], config: dict | None = None) -> dict:
+def _normalized_weight_series(
+    weights: dict[str, float], tickers: list[str]
+) -> pd.Series | None:
+    w_raw = np.array([weights[t] for t in tickers], dtype=float)
+    total_weight = float(w_raw.sum())
+    if total_weight <= 0:
+        return None
+    return pd.Series(w_raw / total_weight, index=tickers)
+
+
+def compute_risk(
+    returns: pd.DataFrame,
+    weights: dict[str, float],
+    config: dict | None = None,
+) -> dict:
     """Compute portfolio risk metrics from asset returns and weights."""
     if returns.empty or not weights:
         return {}
@@ -163,10 +182,15 @@ def compute_risk(returns: pd.DataFrame, weights: dict[str, float], config: dict 
             "warnings": warnings + ["No aligned return observations after filtering."],
         }
 
-    w_raw = np.array([weights[t] for t in tickers])
-    w_norm = w_raw / w_raw.sum()
-    w_series = pd.Series(w_norm, index=tickers)
+    w_series = _normalized_weight_series(weights, tickers)
+    if w_series is None:
+        return {
+            "config_used": config_used,
+            "data_range": data_range,
+            "warnings": warnings + ["Portfolio weights sum to zero after filtering."],
+        }
     cov = rets_aligned.cov()
+    corr = rets_aligned.corr()
 
     port_returns = rets_aligned @ w_series
     trc = total_risk_contribution(w_series, cov)
@@ -184,13 +208,18 @@ def compute_risk(returns: pd.DataFrame, weights: dict[str, float], config: dict 
         "max_drawdown": float(max_drawdown(port_returns)),
         "trc": {t: float(v) for t, v in trc.items()},
         "correlation": {
-            t: {t2: float(rets_aligned.corr().loc[t, t2]) for t2 in tickers}
+            t: {t2: float(corr.loc[t, t2]) for t2 in tickers}
             for t in tickers
         },
         "config_used": config_used,
         "data_range": data_range,
         "warnings": warnings,
-        "risk_explainability": _compute_risk_explainability(rets_aligned, w_series, annualization, trc),
+        "risk_explainability": _compute_risk_explainability(
+            rets_aligned,
+            w_series,
+            annualization,
+            trc,
+        ),
         "metrics_meta": {
             "confidence_level": confidence,
             "risk_free_rate": rf,
@@ -198,7 +227,11 @@ def compute_risk(returns: pd.DataFrame, weights: dict[str, float], config: dict 
     }
 
 
-def compute_nav(returns: pd.DataFrame, weights: dict[str, float], config: dict | None = None) -> dict:
+def compute_nav(
+    returns: pd.DataFrame,
+    weights: dict[str, float],
+    config: dict | None = None,
+) -> dict:
     """Compute NAV series and performance metrics."""
     if returns.empty or not weights:
         return {}
@@ -216,9 +249,13 @@ def compute_nav(returns: pd.DataFrame, weights: dict[str, float], config: dict |
             "warnings": warnings + ["No return observations available with selected parameters."],
         }
 
-    w_raw = np.array([weights[t] for t in tickers])
-    w_norm = w_raw / w_raw.sum()
-    w_series = pd.Series(w_norm, index=tickers)
+    w_series = _normalized_weight_series(weights, tickers)
+    if w_series is None:
+        return {
+            "config_used": config_used,
+            "data_range": data_range,
+            "warnings": warnings + ["Portfolio weights sum to zero after filtering."],
+        }
     port_returns = prepared_returns[tickers].dropna() @ w_series
     if port_returns.empty:
         return {

@@ -43,8 +43,8 @@ class RiskBudgetingEngine:
     """Solve ERC/TRC under realistic portfolio constraints with cvxpy.
 
     Variance decomposition used for risk contributions:
-        RC_i = w_i (\Sigma w)_i
-        MRC_i = (\Sigma w)_i / sigma_p
+        RC_i = w_i (\\Sigma w)_i
+        MRC_i = (\\Sigma w)_i / sigma_p
     """
 
     def __init__(self, config: Optional[RiskBudgetingConfig] = None) -> None:
@@ -92,7 +92,9 @@ class RiskBudgetingEngine:
 
         if transaction_costs is not None and self.config.transaction_cost_penalty > 0:
             tc = transaction_costs.reindex(names).fillna(0.0).values
-            objective_terms.append(self.config.transaction_cost_penalty * cp.sum(cp.multiply(tc, cp.abs(w - base))))
+            objective_terms.append(
+                self.config.transaction_cost_penalty * cp.sum(cp.multiply(tc, cp.abs(w - base)))
+            )
 
         constraints = self._constraints(w)
 
@@ -123,7 +125,11 @@ class RiskBudgetingEngine:
 
         sol = pd.Series(np.array(w.value).flatten(), index=names)
         rc, mrc = self.risk_contribution_table(sol, cov)
-        return RiskBudgetingResult(weights=sol, marginal_risk_contribution=mrc, risk_contribution=rc)
+        return RiskBudgetingResult(
+            weights=sol,
+            marginal_risk_contribution=mrc,
+            risk_contribution=rc,
+        )
 
     def solve_erc(self, cov: pd.DataFrame, **kwargs) -> RiskBudgetingResult:
         """Equal Risk Contribution allocation solved as TRC with equal budgets."""
@@ -131,7 +137,9 @@ class RiskBudgetingEngine:
         return self.solve_trc(cov=cov, target_risk_budget=target, **kwargs)
 
     @staticmethod
-    def risk_contribution_table(weights: pd.Series, cov: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
+    def risk_contribution_table(
+        weights: pd.Series, cov: pd.DataFrame
+    ) -> tuple[pd.Series, pd.Series]:
         """Return total and marginal risk contribution tables."""
         sigma = cov.loc[weights.index, weights.index].values
         w = weights.values

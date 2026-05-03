@@ -121,7 +121,14 @@ def test_risk_includes_fx_conversion_for_non_usd_position(client: TestClient):
     dates = pd.date_range("2024-01-01", periods=140, freq="B")
     with TestSession() as db:
         for i, dt in enumerate(dates):
-            db.add(MarketData(ticker="7203 JT Equity", date=dt.date(), close=2000.0 + i * 5.0, source="seed"))
+            db.add(
+                MarketData(
+                    ticker="7203 JT Equity",
+                    date=dt.date(),
+                    close=2000.0 + i * 5.0,
+                    source="seed",
+                )
+            )
         db.commit()
 
     without_fx = client.get(f"/api/portfolios/{pid}/risk")
@@ -132,7 +139,14 @@ def test_risk_includes_fx_conversion_for_non_usd_position(client: TestClient):
     with TestSession() as db:
         for i, dt in enumerate(dates):
             # Rising JPYUSD adds extra base-currency return.
-            db.add(MarketData(ticker="JPYUSD Curncy", date=dt.date(), close=0.0070 + i * 0.000001, source="seed"))
+            db.add(
+                MarketData(
+                    ticker="JPYUSD Curncy",
+                    date=dt.date(),
+                    close=0.0070 + i * 0.000001,
+                    source="seed",
+                )
+            )
         db.commit()
 
     with_fx = client.get(f"/api/portfolios/{pid}/risk")
@@ -179,7 +193,14 @@ def test_analytics_aggregates_duplicate_ticker_lots(client: TestClient):
     dates = pd.date_range("2024-01-01", periods=260, freq="B")
     with TestSession() as db:
         for i, dt in enumerate(dates):
-            db.add(MarketData(ticker="SPY US Equity", date=dt.date(), close=100.0 + i, source="seed"))
+            db.add(
+                MarketData(
+                    ticker="SPY US Equity",
+                    date=dt.date(),
+                    close=100.0 + i,
+                    source="seed",
+                )
+            )
         db.commit()
 
     res = client.get(f"/api/portfolios/{pid}/analytics", params={"lookback_days": 126})
@@ -218,8 +239,22 @@ def test_analytics_position_valuation_has_fx_fields(client: TestClient):
     dates = pd.date_range("2024-01-01", periods=80, freq="B")
     with TestSession() as db:
         for i, dt in enumerate(dates):
-            db.add(MarketData(ticker="7203 JT Equity", date=dt.date(), close=2000.0 + i, source="seed"))
-            db.add(MarketData(ticker="USDJPY Curncy", date=dt.date(), close=145.0 + i * 0.01, source="seed"))
+            db.add(
+                MarketData(
+                    ticker="7203 JT Equity",
+                    date=dt.date(),
+                    close=2000.0 + i,
+                    source="seed",
+                )
+            )
+            db.add(
+                MarketData(
+                    ticker="USDJPY Curncy",
+                    date=dt.date(),
+                    close=145.0 + i * 0.01,
+                    source="seed",
+                )
+            )
         db.commit()
 
     r = client.get(f"/api/portfolios/{pid}/analytics")

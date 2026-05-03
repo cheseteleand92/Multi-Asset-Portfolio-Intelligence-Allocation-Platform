@@ -1,9 +1,10 @@
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
 from backend.database import Base
-from backend.domain.portfolio.models import Portfolio, Position
 from backend.domain.market_data.models import MarketData
+from backend.domain.portfolio.models import Portfolio, Position
 
 
 @pytest.fixture()

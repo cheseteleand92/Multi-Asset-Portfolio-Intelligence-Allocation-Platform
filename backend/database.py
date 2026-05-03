@@ -15,8 +15,11 @@ class Base(DeclarativeBase):
 
 
 def create_tables() -> None:
-    from backend.domain.portfolio.models import Portfolio, Position  # noqa: F401
-    from backend.domain.market_data.models import MarketData  # noqa: F401
-    from backend.domain.backtest.models import BacktestRun, BacktestResult  # noqa: F401
-    from backend.domain.signals.models import Signal  # noqa: F401
+    from backend.domain.backtest import models as backtest_models
+    from backend.domain.market_data import models as market_data_models
+    from backend.domain.portfolio import models as portfolio_models
+    from backend.domain.signals import models as signal_models
+
+    _ = (backtest_models, market_data_models, portfolio_models, signal_models)
+
     Base.metadata.create_all(bind=engine)

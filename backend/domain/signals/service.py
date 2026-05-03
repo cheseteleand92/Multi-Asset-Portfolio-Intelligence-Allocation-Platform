@@ -8,9 +8,11 @@ Adapts actual core/ API:
     heuristic on the equal-weight portfolio return instead.
 """
 from __future__ import annotations
+
 import numpy as np
 import pandas as pd
-from core.signals import momentum_signal, mean_reversion_signal, vol_breakout_signal
+
+from core.signals import mean_reversion_signal, momentum_signal, vol_breakout_signal
 
 
 def _returns_to_prices(returns: pd.DataFrame) -> pd.DataFrame:

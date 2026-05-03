@@ -1,10 +1,13 @@
 from __future__ import annotations
+
 from datetime import date, timedelta
 from typing import Any
+
 import numpy as np
 import pandas as pd
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.orm import Session
+
 from backend.domain.market_data.models import MarketData
 
 
@@ -31,7 +34,9 @@ def _fx_pair_candidates(currency: str, base_currency: str) -> list[tuple[str, bo
     ]
 
 
-def _fx_series_local_to_base(db: Session, currency: str, base_currency: str) -> tuple[pd.Series | None, str | None]:
+def _fx_series_local_to_base(
+    db: Session, currency: str, base_currency: str
+) -> tuple[pd.Series | None, str | None]:
     ccy = currency.upper()
     base = base_currency.upper()
     if ccy == base:
@@ -49,6 +54,28 @@ def _fx_series_local_to_base(db: Session, currency: str, base_currency: str) -> 
     return None, None
 
 
+def _latest_price_info(
+    price_series: pd.Series | None, fallback_price: float
+) -> tuple[float, str | None, bool]:
+    if price_series is None or price_series.empty:
+        return float(fallback_price), None, False
+    return float(price_series.iloc[-1]), str(price_series.index[-1].date()), True
+
+
+def _fx_source_label(currency: str, base_currency: str, fx_ticker: str | None) -> str:
+    if fx_ticker:
+        return fx_ticker
+    return f"{currency.upper()}{base_currency.upper()} synthetic"
+
+
+def _missing_fx_warning(ticker: str, currency: str, base_currency: str, mode: str) -> str:
+    suffix = "assuming 1.0." if mode == "valuation" else "using local returns."
+    return (
+        f"{ticker}: FX series for {currency.upper()}->{base_currency.upper()} not found; "
+        f"{suffix}"
+    )
+
+
 def position_values_base(
     db: Session,
     positions: list[Any],
@@ -63,8 +90,8 @@ def position_values_base(
 
     for p in positions:
         price_series = _price_series(db, p.ticker)
-        latest_price = float(price_series.iloc[-1]) if price_series is not None and not price_series.empty else float(p.cost_price)
-        if price_series is None or price_series.empty:
+        latest_price, _, has_price = _latest_price_info(price_series, p.cost_price)
+        if not has_price:
             warnings.append(f"{p.ticker}: missing market price, fallback to cost_price.")
 
         fx_series, fx_ticker = _fx_series_local_to_base(db, p.currency, base_currency)
@@ -72,12 +99,14 @@ def position_values_base(
             fx = 1.0
         elif fx_series is not None and not fx_series.empty:
             fx = float(fx_series.iloc[-1])
-            fx_used[p.currency.upper()] = fx_ticker or f"{p.currency.upper()}{base_currency.upper()} synthetic"
+            fx_used[p.currency.upper()] = _fx_source_label(
+                p.currency,
+                base_currency,
+                fx_ticker,
+            )
         else:
             fx = 1.0
-            warnings.append(
-                f"{p.ticker}: FX series for {p.currency.upper()}->{base_currency.upper()} not found, assuming 1.0."
-            )
+            warnings.append(_missing_fx_warning(p.ticker, p.currency, base_currency, "valuation"))
 
         # Aggregate by ticker to support multiple lots of the same symbol.
         values[p.ticker] = values.get(p.ticker, 0.0) + (float(p.quantity) * latest_price * fx)
@@ -99,9 +128,8 @@ def position_valuation_breakdown(
 
     for p in positions:
         price_series = _price_series(db, p.ticker)
-        latest_price = float(price_series.iloc[-1]) if price_series is not None and not price_series.empty else float(p.cost_price)
-        price_date = str(price_series.index[-1].date()) if price_series is not None and not price_series.empty else None
-        if price_series is None or price_series.empty:
+        latest_price, price_date, has_price = _latest_price_info(price_series, p.cost_price)
+        if not has_price:
             warnings.append(f"{p.ticker}: missing market price, fallback to cost_price.")
 
         fx_series, fx_ticker = _fx_series_local_to_base(db, p.currency, base_currency)
@@ -111,12 +139,14 @@ def position_valuation_breakdown(
         elif fx_series is not None and not fx_series.empty:
             fx_rate = float(fx_series.iloc[-1])
             fx_date = str(fx_series.index[-1].date())
-            fx_used[p.currency.upper()] = fx_ticker or f"{p.currency.upper()}{base_currency.upper()} synthetic"
+            fx_used[p.currency.upper()] = _fx_source_label(
+                p.currency,
+                base_currency,
+                fx_ticker,
+            )
         else:
             fx_rate = 1.0
-            warnings.append(
-                f"{p.ticker}: FX series for {p.currency.upper()}->{base_currency.upper()} not found, assuming 1.0."
-            )
+            warnings.append(_missing_fx_warning(p.ticker, p.currency, base_currency, "valuation"))
 
         qty = float(p.quantity)
         local_value = qty * latest_price
@@ -163,14 +193,19 @@ def positions_to_base_returns(
         else:
             fx_series, fx_ticker = _fx_series_local_to_base(db, p.currency, base_currency)
             if fx_series is None or fx_series.empty:
-                warnings.append(
-                    f"{p.ticker}: FX series for {p.currency.upper()}->{base_currency.upper()} not found; using local returns."
-                )
+                warnings.append(_missing_fx_warning(p.ticker, p.currency, base_currency, "returns"))
                 base_returns = local_returns
             else:
-                fx_used[p.currency.upper()] = fx_ticker or f"{p.currency.upper()}{base_currency.upper()} synthetic"
+                fx_used[p.currency.upper()] = _fx_source_label(
+                    p.currency,
+                    base_currency,
+                    fx_ticker,
+                )
                 fx_returns = fx_series.pct_change().dropna()
-                aligned = pd.concat([local_returns.rename("asset"), fx_returns.rename("fx")], axis=1).dropna()
+                aligned = pd.concat(
+                    [local_returns.rename("asset"), fx_returns.rename("fx")],
+                    axis=1,
+                ).dropna()
                 base_returns = (1.0 + aligned["asset"]) * (1.0 + aligned["fx"]) - 1.0
 
         frames[p.ticker] = base_returns.rename(p.ticker)
@@ -191,11 +226,16 @@ def upsert_prices(db: Session, ticker: str, rows: list[dict[str, Any]]) -> int:
     for row in rows:
         stmt = (
             insert(MarketData)
-            .values(ticker=ticker, date=row["date"], close=row["close"],
-                    volume=row.get("volume"), source="bloomberg")
+            .values(
+                ticker=ticker,
+                date=row["date"],
+                close=row["close"],
+                volume=row.get("volume"),
+                source="bloomberg",
+            )
             .on_conflict_do_update(
                 index_elements=["ticker", "date"],
-                set_={"close": row["close"], "volume": row.get("volume")}
+                set_={"close": row["close"], "volume": row.get("volume")},
             )
         )
         db.execute(stmt)
@@ -205,8 +245,12 @@ def upsert_prices(db: Session, ticker: str, rows: list[dict[str, Any]]) -> int:
 
 
 def get_last_date(db: Session, ticker: str) -> date | None:
-    row = db.query(MarketData).filter_by(ticker=ticker).order_by(
-        MarketData.date.desc()).first()
+    row = (
+        db.query(MarketData)
+        .filter_by(ticker=ticker)
+        .order_by(MarketData.date.desc())
+        .first()
+    )
     return row.date if row else None
 
 
@@ -231,8 +275,11 @@ def refresh_ticker(db: Session, ticker: str, bbg_client: Any | None) -> int:
     col_matches = [c for c in df.columns if "PX_LAST" in str(c).upper()]
     col = col_matches[0] if col_matches else df.columns[0]
     # idx may be datetime.date or pd.Timestamp depending on xbbg version
-    rows = [{"date": pd.Timestamp(idx).date(), "close": float(val)}
-            for idx, val in df[col].items() if pd.notna(val)]
+    rows = [
+        {"date": pd.Timestamp(idx).date(), "close": float(val)}
+        for idx, val in df[col].items()
+        if pd.notna(val)
+    ]
     return upsert_prices(db, ticker, rows)
 
 

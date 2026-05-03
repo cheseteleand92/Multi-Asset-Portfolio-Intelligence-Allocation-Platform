@@ -1,11 +1,12 @@
-import pytest
 from datetime import date
 from unittest.mock import MagicMock
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+
 from backend.database import Base
-from backend.domain.market_data.models import MarketData
 from backend.domain.market_data import service
 
 

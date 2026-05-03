@@ -23,7 +23,11 @@ def mean_reversion_signal(prices: pd.DataFrame, window: int = 20) -> pd.Series:
     return -z  # Invert so high z (overbought) is negative signal
 
 
-def vol_breakout_signal(prices: pd.DataFrame, short_window: int = 20, long_window: int = 60) -> pd.Series:
+def vol_breakout_signal(
+    prices: pd.DataFrame,
+    short_window: int = 20,
+    long_window: int = 60,
+) -> pd.Series:
     """Volatility breakout: Short-term vol / Long-term vol - 1."""
     ret = prices.pct_change()
     short_vol = ret.rolling(short_window).std().iloc[-1]

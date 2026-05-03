@@ -3,10 +3,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-from backend.main import app
+
 from backend.database import Base
 from backend.deps import get_db
 from backend.domain.market_data.models import MarketData
+from backend.main import app
 
 TEST_DB_URL = "sqlite:///:memory:"
 engine = create_engine(
@@ -54,9 +55,14 @@ def test_add_position(client):
 def test_csv_import(client):
     import io
     pid = client.post("/api/portfolios", json={"name": "F"}).json()["id"]
-    csv_data = "ticker,quantity,cost_price,currency,asset_class\nAAPL US Equity,100,150.0,USD,Equity\n"
-    r = client.post(f"/api/portfolios/{pid}/import-csv",
-                    files={"file": ("holdings.csv", io.BytesIO(csv_data.encode()), "text/csv")})
+    csv_data = (
+        "ticker,quantity,cost_price,currency,asset_class\n"
+        "AAPL US Equity,100,150.0,USD,Equity\n"
+    )
+    r = client.post(
+        f"/api/portfolios/{pid}/import-csv",
+        files={"file": ("holdings.csv", io.BytesIO(csv_data.encode()), "text/csv")},
+    )
     assert r.status_code == 200
     assert r.json()["imported"] == 1
 
@@ -106,7 +112,10 @@ def test_csv_import_replace(client):
         },
     )
 
-    csv_data = "ticker,quantity,cost_price,currency,asset_class\nMSFT US Equity,50,320.0,USD,Equity\n"
+    csv_data = (
+        "ticker,quantity,cost_price,currency,asset_class\n"
+        "MSFT US Equity,50,320.0,USD,Equity\n"
+    )
     r = client.post(
         f"/api/portfolios/{pid}/import-csv?replace=true",
         files={"file": ("holdings.csv", io.BytesIO(csv_data.encode()), "text/csv")},
